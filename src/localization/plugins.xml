@@ -1,0 +1,5 @@
+<library path="lib/libuwb_start">
+  <class name="localization/uwb_start" type="localization::uwb_start" base_class_type="nodelet::Nodelet">
+    <description>uwb_start nodelet</description>
+  </class>
+</library>
