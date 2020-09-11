@@ -1,0 +1,2 @@
+localization
+-DCATKIN_DEVEL_PREFIX=/home/eha/neha_ws2/devel -DCMAKE_INSTALL_PREFIX=/home/eha/neha_ws2/install -G Unix Makefiles
