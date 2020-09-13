@@ -378,9 +378,39 @@ mrs_msgs::ReferenceStamped new_waypoint;
 //localization algo 
 //clear
 //or mrs_msgs::RtkGps::ConstPtr&
-//kalmanfilter code]
- void uwb_start::ekf(const ros::TimerEvent& te){
+//kalmanfilter code
+//once all three are at position trigger timer 
  
+//fill val;ue for covariance 
+ //define H here
+ H=
+Eigen::MatrixXd daig.cov_model_vec (3,3);
+std::map<int, cov_model_vec> 	        	cov_model;	
+Eigen::MatrixXd daig.cov_imu_vec (3,3);
+std::map<int, cov_imu_vec> 	        	cov_imu;
+Eigen::MatrixXd daig.cov_uwb_vec (3,3);
+std::map<int, cov_uwb_vec> 	        	cov_uwb;	
+t=ros::time::now();
+void uwb_start::ekf(const ros::TimerEvent& te){
+Eigen::MatrixXd cov_sonar (1,1);
+Eigen::MatrixXd drones_model_locate(len(other_drone_names_),1);
+Eigen::MatrixXd k1(len(other_drone_names_),1);
+Eigen::MatrixXd model_uwb_pose(len(other_drone_names_),1);
+Eigen::MatrixXd sigma1(len(other_drone_names_),1);
+Eigen::MatrixXd k2(len(other_drone_names_),1);
+Eigen::MatrixXd sigm2(len(other_drone_names_),1);
+float dt=ros::time::now()-t;
+float t=ros::time::now(); 
+for(int i=0;i<=len(other_drone_names_);i++)
+{
+	K1[i]=(cov_model[i]*H)*inv.(H*cov_model[i]*H.T+cov_uwb[i]);
+	model_uwb_pose[i]=drones_model_locate[i]+k1*(drones_uwb_locate[i]-drones_model_locate[i]);
+	sigma1[i]=cov_model-k1*cov_model;
+	K2[i]=sigma1*inv.(sigma1+cov_imu);
+	model_final_pose[i]=model_uwb_pose[i]+k2*(drones_imu_locate[i]-model_uwb_pose[i]);
+	sigma2[i]=sigma1[i]-k2[i]*sigma1[i];
+} 
+	drones_model_locate[i]=drones_final_locate[i]+drone_vel[i]*dt	 
  }
 void uwb_start::callbackTimerUwbLocate(const ros::TimerEvent& te)
 {
