@@ -71,6 +71,7 @@ namespace localization
 	void callbackTimerUwbLocate(const ros::TimerEvent& te);
 	void takeoff(int client_id, float height);
 	void ekf(const ros::TimerEvent& te);
+	void start_movement();
 	//void uwblocate();
 	//vector for subcription 
 	std::vector<ros::Subscriber>                            sub_uav_rtk_gps;
@@ -326,6 +327,15 @@ void uwb_start::activate(void)
 			drones_uwb_locate["uav3"] = X;
 			drones_final_locate["uav3"] = X;
 			path_set=true;
+			uwb_start::takeoff(3,5);
+			while(!other_drones_diagnostics["uav4"]){}
+			uwb_start::takeoff(4,5);
+			while(!other_drones_diagnostics["uav5"]){}
+			uwb_start::takeoff(5,5);
+			while(!other_drones_diagnostics["uav6"]){}
+			filteration_start=true;
+			start_movement();
+
 	}
 	ros::spin();
   }
