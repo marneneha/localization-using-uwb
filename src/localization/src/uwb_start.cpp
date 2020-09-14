@@ -126,14 +126,21 @@ namespace localization
 	Eigen::VectorXd cov_uwb_vec<<1,1,1;
 	Eigen::MatrixXd cov_uwb_max = cov_uwb_vec.asDiagonal();
 	std::map<int, cov_uwb_max> 	        		cov_uwb;
+	Eigen::VectorXd cov_sonar_vec<<1,1,1;
+	Eigen::MatrixXd cov_sonar_max = cov_soanr_vec.asDiagonal();
+	std::map<int, cov_sonar_max> 	        		cov_sonar;
 	Eigen::MatrixXd sigma1_max(3,3);
 	std::map<int, sigma1_max> 	        		sigma1;
 	Eigen::MatrixXd sigma2_max(3,3);
 	std::map<int, sigma2_max> 	        		sigma2;
+	Eigen::MatrixXd sigma3_max(3,3);
+	std::map<int, sigma3_max> 	        		sigma3;
 	Eigen::MatrixXd k1_max(3,3);
 	std::map<int, k1_max>	 	        		k1;
 	Eigen::MatrixXd k2_max(3,3);
 	std::map<int, k2_max>	 	        		k2;
+	Eigen::MatrixXd k3_max(3,3);
+	std::map<int, k3_max>	 	        		k3;
 	Eigen::VectorXd pose_model_uwb(3);
 	std::map<int, pose_model_uwb> 				model_uwb_pose;
 	Eigen::VectorXd drones_model_locate_vec(3);
@@ -416,19 +423,23 @@ float dt=ros::time::now()-t;
 t=ros::time::now(); 
 	for(int i=0;i<=len(other_drone_names_);i++)
 	{
+		std::string uav_name="uav"+i;
 		if(ekf_true)
 		{
 		tf::pointMsgToEigen(const geometry_msgs::Point & m,Eigen::Vector3d & e )
 		drones_model_locate[i]=last_pose[i]+drone_vel[i]*dt;	 
 		K1[i]=(cov_model[i]*H)*((H*cov_model[i]*(H.transpose())+cov_uwb[i]).inverse());
-		tf::pointMsgToEigen(const geometry_msgs::Point & drones_uwb_locate[i],Eigen::Vector3d & uwb );
+		tf::pointMsgToEigen(const geometry_msgs::Point & drones_uwb_locate[uav_name],Eigen::Vector3d & uwb );
 		model_uwb_pose[i]=drones_model_locate[i]+(k1[i]*(uwb-drones_model_locate[i]));
 		sigma1[i]=cov_model[i]-(k1[i]*cov_model[i]);
 		K2[i]=sigma1[i]*((sigma1[i]+cov_imu[i]).inverse());
-		tf::pointMsgToEigen(const geometry_msgs::Point & drones_imu_locate[i],Eigen::Vector3d & imu );
+		tf::pointMsgToEigen(const geometry_msgs::Point & drones_imu_locate[uav_name],Eigen::Vector3d & imu );
 		Eigen::Vector3d final=model_uwb_pose[i]+k2[i]*(imu-model_uwb_pose[i]);
-		tf::pointEigenToMsg(const Eigen::Vector3d & final,geometry_msgs::Point & drones_final_locate[i])
+		tf::pointEigenToMsg(const Eigen::Vector3d & final, geometry_msgs::Point & drones_final_locate[uav_name]);
 		sigma2[i]=sigma1[i]-k2[i]*sigma1[i];
+		K3[i]=sigma2[i]*((sigma2[i]+cov_sonar[i]).inverse());
+		drones_final_locate[i].z=drones_final_locate[i].z+k3[i]*(drones_sonar_locate[i]-drones_final_locate[i].z);
+		sigma3[i]=sigma2[i]-k3[i]*sigma2[i];
 		}
 		ekf_true = true;
 		last_pose[i] = drones_final_locate[i];
