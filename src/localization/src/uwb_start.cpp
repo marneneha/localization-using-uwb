@@ -36,6 +36,7 @@
 #include <iterator> 
 #include <std_msgs/String.h> 
 #include <Eigen/Dense>
+#include <eigen_conversions/eigen_msg.h>
 
 namespace localization
 {
@@ -417,12 +418,16 @@ t=ros::time::now();
 	{
 		if(ekf_true)
 		{
+		tf::pointMsgToEigen(const geometry_msgs::Point & m,Eigen::Vector3d & e )
 		drones_model_locate[i]=last_pose[i]+drone_vel[i]*dt;	 
 		K1[i]=(cov_model[i]*H)*((H*cov_model[i]*(H.transpose())+cov_uwb[i]).inverse());
-		model_uwb_pose[i]=drones_model_locate[i]+(k1[i]*(drones_uwb_locate[i]-drones_model_locate[i]));
+		tf::pointMsgToEigen(const geometry_msgs::Point & drones_uwb_locate[i],Eigen::Vector3d & uwb );
+		model_uwb_pose[i]=drones_model_locate[i]+(k1[i]*(uwb-drones_model_locate[i]));
 		sigma1[i]=cov_model[i]-(k1[i]*cov_model[i]);
 		K2[i]=sigma1[i]*((sigma1[i]+cov_imu[i]).inverse());
-		drones_final_locate[i]=model_uwb_pose[i]+k2[i]*(drones_imu_locate[i]-model_uwb_pose[i]);
+		tf::pointMsgToEigen(const geometry_msgs::Point & drones_imu_locate[i],Eigen::Vector3d & imu );
+		Eigen::Vector3d final=model_uwb_pose[i]+k2[i]*(imu-model_uwb_pose[i]);
+		tf::pointEigenToMsg(const Eigen::Vector3d & final,geometry_msgs::Point & drones_final_locate[i])
 		sigma2[i]=sigma1[i]-k2[i]*sigma1[i];
 		}
 		ekf_true = true;
