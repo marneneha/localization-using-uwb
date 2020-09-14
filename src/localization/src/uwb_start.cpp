@@ -383,34 +383,43 @@ mrs_msgs::ReferenceStamped new_waypoint;
  
 //fill val;ue for covariance 
  //define H here
- H=
-Eigen::MatrixXd daig.cov_model_vec (3,3);
-std::map<int, cov_model_vec> 	        	cov_model;	
-Eigen::MatrixXd daig.cov_imu_vec (3,3);
-std::map<int, cov_imu_vec> 	        	cov_imu;
-Eigen::MatrixXd daig.cov_uwb_vec (3,3);
-std::map<int, cov_uwb_vec> 	        	cov_uwb;	
+Eigen::MatrixXd H=
+Eigen::VectorXd cov_model_vec<<1,1,1;
+Eigen::MatrixXd cov_model_max = cov_model_vec.asDiagonal();
+std::map<int, cov_model_max> 	        	cov_model;	
+Eigen::VectorXd cov_imu_vec<<1,1,1;
+Eigen::MatrixXd cov_imu_max = cov_imu_vec.asDiagonal();
+std::map<int, cov_imu_max> 	        	cov_imu;
+Eigen::VectorXd cov_uwb_vec<<1,1,1;
+Eigen::MatrixXd cov_uwb_max = cov_uwb_vec.asDiagonal();
+std::map<int, cov_uwb_max> 	        	cov_uwb;
+Eigen::MatrixXd sigma1_max(3,3);
+std::map<int, sigma1_max> 	        	sigma1;
+Eigen::MatrixXd sigma2_max(3,3);
+std::map<int, sigma2_max> 	        	sigma2;
+Eigen::MatrixXd k1_max(3,3);
+std::map<int, k1_max>	 	        	k1;
+Eigen::MatrixXd k2_max(3,3);
+std::map<int, k2_max>	 	        	k2;
+Eigen::VectorXd pose_model_uwb(3);
+std::map<int, pose_model_uwb> 			model_uwb_pose;
+Eigen::VectorXd drones_model_locate_vec(3);
+std::map<int, drones_model_locate_vec> 			drones_model_locate;
 t=ros::time::now();
 void uwb_start::ekf(const ros::TimerEvent& te){
-Eigen::MatrixXd cov_sonar (1,1);
 Eigen::MatrixXd drones_model_locate(len(other_drone_names_),1);
-Eigen::MatrixXd k1(len(other_drone_names_),1);
-Eigen::MatrixXd model_uwb_pose(len(other_drone_names_),1);
-Eigen::MatrixXd sigma1(len(other_drone_names_),1);
-Eigen::MatrixXd k2(len(other_drone_names_),1);
-Eigen::MatrixXd sigm2(len(other_drone_names_),1);
 float dt=ros::time::now()-t;
 float t=ros::time::now(); 
 for(int i=0;i<=len(other_drone_names_);i++)
 {
-	K1[i]=(cov_model[i]*H)*inv.(H*cov_model[i]*H.T+cov_uwb[i]);
-	model_uwb_pose[i]=drones_model_locate[i]+k1*(drones_uwb_locate[i]-drones_model_locate[i]);
-	sigma1[i]=cov_model-k1*cov_model;
-	K2[i]=sigma1*inv.(sigma1+cov_imu);
-	model_final_pose[i]=model_uwb_pose[i]+k2*(drones_imu_locate[i]-model_uwb_pose[i]);
+	K1[i]=(cov_model[i]*H)*((H*cov_model[i]*(H.transpose())+cov_uwb[i]).inverse());
+	model_uwb_pose[i]=drones_model_locate[i]+(k1[i]*(drones_uwb_locate[i]-drones_model_locate[i]));
+	sigma1[i]=cov_model[i]-(k1[i]*cov_model[i]);
+	K2[i]=sigma1[i]*((sigma1[i]+cov_imu[i]).inverse());
+	model_final_pose[i]=model_uwb_pose[i]+k2[i]*(drones_imu_locate[i]-model_uwb_pose[i]);
 	sigma2[i]=sigma1[i]-k2[i]*sigma1[i];
 } 
-	drones_model_locate[i]=drones_final_locate[i]+drone_vel[i]*dt	 
+	drones_model_locate[i]=drones_final_locate[i]+drone_vel[i]*dt;	 
  }
 void uwb_start::callbackTimerUwbLocate(const ros::TimerEvent& te)
 {
