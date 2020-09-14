@@ -410,7 +410,6 @@ mrs_msgs::ReferenceStamped new_waypoint;
  //define H here
  
 void uwb_start::ekf(const ros::TimerEvent& te){
-Eigen::MatrixXd drones_model_locate(len(other_drone_names_),1);
 float t = 0;
 float dt=ros::time::now()-t;
 t=ros::time::now(); 
@@ -423,7 +422,7 @@ t=ros::time::now();
 		model_uwb_pose[i]=drones_model_locate[i]+(k1[i]*(drones_uwb_locate[i]-drones_model_locate[i]));
 		sigma1[i]=cov_model[i]-(k1[i]*cov_model[i]);
 		K2[i]=sigma1[i]*((sigma1[i]+cov_imu[i]).inverse());
-		model_final_pose[i]=model_uwb_pose[i]+k2[i]*(drones_imu_locate[i]-model_uwb_pose[i]);
+		drones_final_locate[i]=model_uwb_pose[i]+k2[i]*(drones_imu_locate[i]-model_uwb_pose[i]);
 		sigma2[i]=sigma1[i]-k2[i]*sigma1[i];
 		}
 		ekf_true = true;
