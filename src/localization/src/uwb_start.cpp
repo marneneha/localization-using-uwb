@@ -69,6 +69,7 @@ namespace localization
 	void callbackTimerPublishDistToWaypoint(const ros::TimerEvent& te);
 	void callbackTimerUwbLocate(const ros::TimerEvent& te);
 	void takeoff(int client_id, float height);
+	void ekf(const ros::TimerEvent& te);
 	//void uwblocate();
 	//vector for subcription 
 	std::vector<ros::Subscriber>                            sub_uav_rtk_gps;
@@ -148,6 +149,7 @@ namespace localization
 	Eigen::VectorXd last_pose_vec(3);
 	std::map<int, last_pose_vec> 			last_pose;
 	bool 							ekf_true = false;
+	bool							filteration_start=false;
   };
 }
 
@@ -222,6 +224,8 @@ std::string motor_service_name = std::string("/")+other_drone_names_[i]+ "/contr
 
 timer_publish_dist_to_waypoint_ = nh.createTimer(ros::Rate(20), &uwb_start::callbackTimerPublishDistToWaypoint, this);
 timer_publish_uwb_locate = nh.createTimer(ros::Rate(10), &uwb_start::callbackTimerUwbLocate, this);
+timer_publish_uwb_locate = nh.createTimer(ros::Rate(10), &uwb_start::ekf, this);
+
 //------------------------service--------------
 
 	
@@ -424,7 +428,7 @@ t=ros::time::now();
 	for(int i=0;i<=len(other_drone_names_);i++)
 	{
 		std::string uav_name="uav"+i;
-		if(ekf_true)
+		if(ekf_true&&filteration_start)
 		{
 		tf::pointMsgToEigen(const geometry_msgs::Point & m,Eigen::Vector3d & e )
 		drones_model_locate[i]=last_pose[i]+drone_vel[i]*dt;	 
