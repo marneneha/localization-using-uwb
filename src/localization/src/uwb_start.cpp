@@ -68,6 +68,7 @@ namespace localization
 	void callbackTimerPublishDistToWaypoint(const ros::TimerEvent& te);
 	void callbackTimerUwbLocate(const ros::TimerEvent& te);
 	void takeoff(int client_id, float height);
+	void movement(void);
 	//void uwblocate();
 	//vector for subcription 
 	std::vector<ros::Subscriber>                            sub_uav_rtk_gps;
@@ -287,6 +288,7 @@ void uwb_start::activate(void)
 			X.z = drones_sonar_locate["uav3"];
 			drones_uwb_locate["uav3"] = X;
 			drones_final_locate["uav3"] = X;
+			movement();
 	}
 	ros::spin();
   }
@@ -385,6 +387,19 @@ mrs_msgs::ReferenceStamped new_waypoint;
 //localization algo 
 //clear
 //or mrs_msgs::RtkGps::ConstPtr&
+ 
+ 
+ void uwb_start::movement(){
+new_waypoints["uav1"].reference.position.y = new_waypoints["uav1"].reference.position.y+15;
+new_waypoints["uav2"].reference.position.y = new_waypoints["uav2"].reference.position.y+15;
+new_waypoints["uav3"].reference.position.y = new_waypoints["uav3"].reference.position.y+15;
+new_waypoints["uav4"].reference.position.y = new_waypoints["uav4"].reference.position.y+15;
+new_waypoints["uav5"].reference.position.y = new_waypoints["uav5"].reference.position.y+15;
+new_waypoints["uav6"].reference.position.y = new_waypoints["uav6"].reference.position.y+15;
+k=new_waypoints.find("uav6");
+
+ }
+ 
 
 void uwb_start::callbackTimerUwbLocate(const ros::TimerEvent& te)
 {
