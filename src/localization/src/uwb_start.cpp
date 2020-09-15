@@ -106,7 +106,7 @@ namespace localization
 	std::vector<ros::Publisher>				pub_reference_;
 	ros::Timer 						timer_publish_dist_to_waypoint_;
 	ros::Timer 						timer_publish_uwb_locate;
-	std::vector<mrs_msgs::ReferenceStamped>			new_waypoints;
+	std::map<std::string, mrs_msgs::ReferenceStamped>	new_waypoints;
 	bool 							path_set=false;
 	mavros_msgs::CommandBool 				arm_request;
 	mavros_msgs::CommandTOL 				srv_takeoff;
@@ -207,7 +207,6 @@ ROS_INFO_ONCE("m here in init");
 
 
 //activate fun this is fun to form a traingle of uav
-int k=0;
 void uwb_start::activate(void)
 {
 
@@ -234,6 +233,7 @@ void uwb_start::activate(void)
 			R2=anchor["uav2"].tag["uav1"];
 		  std::cout << __FILE__ << ":" << __LINE__ << "i got uwb distance for second and it is "<<R2<<std::endl; 
 			r2=sqrt((pow(R2,2))-(pow(drones_final_locate["uav2"].z,2)));
+			path_set=true;
 			uwb_start::goal("uav2",0,1,0,0);
 		  std::cout << __FILE__ << ":" << __LINE__ << "goal for uav2 done "  <<std::endl; 
 			while(!other_drones_diagnostics["uav2"]){}
@@ -287,7 +287,6 @@ void uwb_start::activate(void)
 			X.z = drones_sonar_locate["uav3"];
 			drones_uwb_locate["uav3"] = X;
 			drones_final_locate["uav3"] = X;
-			path_set=true;
 	}
 	ros::spin();
   }
@@ -353,10 +352,18 @@ while(!srv_takeoff.response.success)
   std::cout << __FILE__ << ":" << __LINE__ << "i am at takeoff end "  <<std::endl; 
 ros::Duration(5).sleep();
 }
-
+map<int, int>::iterator itr=new_waypoints.begin(),k;
 void uwb_start::callbackTimerPublishDistToWaypoint(const ros::TimerEvent& te)
 {
-	pub_reference_[k].publish(new_waypoints[k]);
+	if(path_set&&itr<=k){
+	int l=k-itr;
+	pub_reference_[l].publish(itr->second);
+	itr++;
+	}
+	else
+	{
+	itr=new_waypoints.begin();
+	}
 }
 
 
@@ -371,9 +378,9 @@ mrs_msgs::ReferenceStamped new_waypoint;
 	new_waypoint.reference.position.y = y;
 	new_waypoint.reference.position.z = z;
 	new_waypoint.reference.heading    = yaw;
-	new_waypoints.push_back(new_waypoint);
-	ROS_INFO("[uwb_start]: Flying to waypoint : x: %2.2f y: %2.2f z: %2.2f yaw: %2.2f uav name: %s",new_waypoints[k].reference.position.x, new_waypoints[k].reference.position.y, new_waypoints[k].reference.position.z, new_waypoints[k].reference.heading, uav_name.c_str() );
-	
+	new_waypoints[uav_name]=new_waypoint;
+	ROS_INFO("[uwb_start]: Flying to waypoint : x: %2.2f y: %2.2f z: %2.2f yaw: %2.2f uav name: %s",new_waypoint.reference.position.x, new_waypoint.reference.position.y, new_waypoint.reference.position.z, new_waypoint.reference.heading, uav_name.c_str() );
+	k=new_waypoints.find(uav_name);
 }
 //localization algo 
 //clear
