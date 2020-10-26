@@ -439,8 +439,9 @@ void uwb_start::callbackOtheruavcoordinates(const mrs_msgs::RtkGpsConstPtr msg, 
 //callback function for sonar 
 void uwb_start::callbacksonar(const sensor_msgs::RangeConstPtr msg, const std::string& topic){
   got_sonar_data=true;
-  int uav_no = *(topic.c_str()+3); 
-  std::string uav_name="uav"+uav_no;
+  int uav_no = *(topic.c_str()+4); 
+  uav_no = uav_no-48;
+  std::string uav_name="uav"+std::to_string(uav_no);
   std::cout << __FILE__ << ":" << __LINE__  << "callback sonar data uav name is " << uav_name <<"and range is "<<msg->range<<std::endl; 
   drones_sonar_locate[uav_name] = msg->range;
   drones_final_locate[uav_name].z=msg->range;
@@ -449,24 +450,26 @@ void uwb_start::callbacksonar(const sensor_msgs::RangeConstPtr msg, const std::s
 //callback function for imu sensor
 // see this algo 
 int c;
+double x_0 =0,y_0 =0,z_0 =0;
 void uwb_start::callbackimudata(const sensor_msgs::ImuConstPtr msg, const std::string& topic){
-  float t;
+  double t;
   got_imu_data=true;
-  ROS_INFO("[uwb_start]: m here in callbackimudata");
+  std::cout << __FILE__ << ":" << __LINE__  << "[uwb_start]: m here in callbackimudata x_0 is " << x_0 <<" y_0 is "<<y_0<<"z_0 is "<<z_0<<std::endl; 
   int uav_no = *(topic.c_str()+4); 
   uav_no = uav_no-48;
   std::string uav_name="uav"+std::to_string(uav_no);
-  int x_0,y_0,z_0;
-  float dt = msg->header.stamp.nsec - t ;
-  t = msg->header.stamp.nsec;
-	if(c>0)  
-	{ int x = x_0 + dt*pow(t,2)*(msg->linear_acceleration.x);
-	  int y = y_0 + dt*pow(t,2)*(msg->linear_acceleration.y);
-	  int z = z_0 + dt*pow(t,2)*(msg->linear_acceleration.z-9.7);
+
+  double dt = (msg->header.stamp.sec + (msg->header.stamp.nsec/pow(10,9))) - t ;
+  t = msg->header.stamp.sec + (msg->header.stamp.nsec/pow(10,9));
+  std::cout << __FILE__ << ":" << __LINE__  << "time is " << t <<"time difference is "<<dt<<std::endl;
+	if(c>0 && dt<1)  
+	{ double x = x_0 + 0.5*pow(dt,2)*(msg->linear_acceleration.x);
+	  double y = y_0 + 0.5*pow(dt,2)*(msg->linear_acceleration.y);
+	  double z = z_0 + 0.5*pow(dt,2)*(msg->linear_acceleration.z-9.7);
+          std::cout << __FILE__ << ":" << __LINE__  << "difference in x is " << 0.5*pow(dt,2)*(msg->linear_acceleration.x) <<"difference in y is "<<0.5*pow(dt,2)*(msg->linear_acceleration.y)<<"difference in z is "<<0.5*pow(dt,2)*(msg->linear_acceleration.z-9.7)<<std::endl;
 	  x_0 = x;
 	  y_0 = y;
 	  z_0 = z;
-	  std::cout << __FILE__ << ":" << __LINE__  << "uav name is " << uav_name <<"and x is "<<x<<"y is "<<y<<"z is "<<z<<std::endl; 
 	  geometry_msgs::Point X;
 	  X.x=x;
 	  X.y=y;
@@ -485,7 +488,7 @@ void uwb_start::callbackuwbranging(const gtec_msgs::RangingConstPtr msg, const s
   ROS_INFO("[uwb_start]: m here in callbackuwbranging tagid %s is range is %d from anchorid %s",msg->tagId.c_str() , msg->range, msg->anchorId.c_str() );
   std::string uav_name = "uav"+msg->anchorId;
   if(msg->range>2000)
-  anchor[uav_name].tag[msg->tagId] = msg->range/2000;
+  anchor[uav_name].tag[msg->tagId] = msg->range/1000;
 }
 //need to see this 
 
