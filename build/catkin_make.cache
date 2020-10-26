@@ -1,0 +1,2 @@
+localization
+-DCMAKE_BUILD_TYPE=Debug -DCATKIN_DEVEL_PREFIX=/home/neha/neha_ws2/devel -DCMAKE_INSTALL_PREFIX=/home/neha/neha_ws2/install -G Unix Makefiles
