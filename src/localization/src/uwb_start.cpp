@@ -435,13 +435,16 @@ void uwb_start::callbackOtheruavcoordinates(const mrs_msgs::RtkGpsConstPtr msg, 
   std::string uav_name="uav"+uav_no;
   drones_gps_locate[uav_name]=*msg;
 }
-
+int sonar_count[3];
 //callback function for sonar 
 void uwb_start::callbacksonar(const sensor_msgs::RangeConstPtr msg, const std::string& topic){
-  got_sonar_data=true;
+  
   int uav_no = *(topic.c_str()+4); 
   uav_no = uav_no-48;
   std::string uav_name="uav"+std::to_string(uav_no);
+  sonar_count[uav_no] = 1;
+  if(sonar_count[0]&&sonar_count[1]&&sonar_count[2])	
+  	got_sonar_data=true;
   std::cout << __FILE__ << ":" << __LINE__  << "callback sonar data uav name is " << uav_name <<"and range is "<<msg->range<<std::endl; 
   drones_sonar_locate[uav_name] = msg->range;
   drones_final_locate[uav_name].z=msg->range;
@@ -451,12 +454,15 @@ void uwb_start::callbacksonar(const sensor_msgs::RangeConstPtr msg, const std::s
 // see this algo 
 int c;
 double x_0 =0,y_0 =0,z_0 =0;
+int imu_count[3];
 void uwb_start::callbackimudata(const sensor_msgs::ImuConstPtr msg, const std::string& topic){
   double t;
-  got_imu_data=true;
   std::cout << __FILE__ << ":" << __LINE__  << "[uwb_start]: m here in callbackimudata x_0 is " << x_0 <<" y_0 is "<<y_0<<"z_0 is "<<z_0<<std::endl; 
   int uav_no = *(topic.c_str()+4); 
   uav_no = uav_no-48;
+  imu_count[uav_no] = 1;
+  if(imu_count[0]&&imu_count[1]&&imu_count[2])	
+  	got_imu_data=true;
   std::string uav_name="uav"+std::to_string(uav_no);
 
   double dt = (msg->header.stamp.sec + (msg->header.stamp.nsec/pow(10,9))) - t ;
@@ -480,15 +486,19 @@ void uwb_start::callbackimudata(const sensor_msgs::ImuConstPtr msg, const std::s
 	}
 c++;
 }
-
+int uwb_count[3];
 //callback function for uwb sensor
 void uwb_start::callbackuwbranging(const gtec_msgs::RangingConstPtr msg, const std::string& topic){
 //see this condition properly
-  got_uwb_data=true;
   ROS_INFO("[uwb_start]: m here in callbackuwbranging tagid %s is range is %d from anchorid %s",msg->tagId.c_str() , msg->range, msg->anchorId.c_str() );
   std::string uav_name = "uav"+msg->anchorId;
+  int uav_no = *(topic.c_str()+4); 
+  uav_no = uav_no-48;
+  uwb_count[uav_no] = 1;
+  if(uwb_count[0]&&uwb_count[1]&&uwb_count[2])	
+  	got_uwb_data=true;
   if(msg->range>2000)
-  anchor[uav_name].tag[msg->tagId] = msg->range/1000;
+  	anchor[uav_name].tag[msg->tagId] = msg->range/1000;
 }
 //need to see this 
 
