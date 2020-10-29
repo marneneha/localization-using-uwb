@@ -216,6 +216,7 @@ void uwb_start::activate(void)
 	//ros::Duration(15).sleep();
 	while(ros::ok()){
 	//
+	std::cout << __FILE__ << ":" << __LINE__ <<"I GET IN WHILE got_sonar_data is" <<got_sonar_data<< "got_uwb_data is" <<got_uwb_data<< "got_imu_data is"<<got_imu_data<<std::endl;
 	if((got_sonar_data)&&(got_uwb_data)&&(got_imu_data)){
 		int n=1;
 		float x=0,y=0,z=0,yaw=0;
@@ -300,16 +301,16 @@ void uwb_start::takeoff(int client_id, float height)
 //set motors
 	//ros::Duration(5).sleep();
 	std::cout << __FILE__ << ":" << __LINE__ << "i am at takeoff start "  <<std::endl; 
-	/*motor_request.request.data = 1;
+	motor_request.request.data = 1;
 	motor_client[client_id].call(motor_request);
-	while(!motor_request.response.success)
+	/*while(!motor_request.response.success)
 	{
 		ros::Duration(.1).sleep();
 		motor_client[client_id].call(motor_request);
-	}
-	  std::cout << __FILE__ << ":" << __LINE__ << "motor on"  <<std::endl; */
+	}*/
+	  std::cout << __FILE__ << ":" << __LINE__ << "motor on"  <<std::endl; 
 	//set arm
-	//ros::Duration(5).sleep();
+	ros::Duration(5).sleep();
 	arm_request.request.value = true;
 	arm_client[client_id].call(arm_request);
 	while(!arm_request.response.success)
@@ -323,7 +324,7 @@ void uwb_start::takeoff(int client_id, float height)
 			ROS_INFO("Arming Successful");	
 		}
 	//set mode
-	//ros::Duration(5).sleep();
+	ros::Duration(5).sleep();
 	srv_setMode.request.base_mode = 0;
 	srv_setMode.request.custom_mode = "offboard";
 	set_mode_client[client_id].call(srv_setMode);
@@ -457,7 +458,7 @@ double x_0 =0,y_0 =0,z_0 =0;
 int imu_count[3];
 void uwb_start::callbackimudata(const sensor_msgs::ImuConstPtr msg, const std::string& topic){
   double t;
-  std::cout << __FILE__ << ":" << __LINE__  << "[uwb_start]: m here in callbackimudata x_0 is " << x_0 <<" y_0 is "<<y_0<<"z_0 is "<<z_0<<std::endl; 
+  //std::cout << __FILE__ << ":" << __LINE__  << "[uwb_start]: m here in callbackimudata x_0 is " << x_0 <<" y_0 is "<<y_0<<"z_0 is "<<z_0<<std::endl; 
   int uav_no = *(topic.c_str()+4); 
   uav_no = uav_no-48;
   imu_count[uav_no] = 1;
@@ -467,12 +468,12 @@ void uwb_start::callbackimudata(const sensor_msgs::ImuConstPtr msg, const std::s
 
   double dt = (msg->header.stamp.sec + (msg->header.stamp.nsec/pow(10,9))) - t ;
   t = msg->header.stamp.sec + (msg->header.stamp.nsec/pow(10,9));
-  std::cout << __FILE__ << ":" << __LINE__  << "time is " << t <<"time difference is "<<dt<<std::endl;
+  //std::cout << __FILE__ << ":" << __LINE__  << "time is " << t <<"time difference is "<<dt<<std::endl;
 	if(c>0 && dt<1)  
 	{ double x = x_0 + 0.5*pow(dt,2)*(msg->linear_acceleration.x);
 	  double y = y_0 + 0.5*pow(dt,2)*(msg->linear_acceleration.y);
 	  double z = z_0 + 0.5*pow(dt,2)*(msg->linear_acceleration.z-9.7);
-          std::cout << __FILE__ << ":" << __LINE__  << "difference in x is " << 0.5*pow(dt,2)*(msg->linear_acceleration.x) <<"difference in y is "<<0.5*pow(dt,2)*(msg->linear_acceleration.y)<<"difference in z is "<<0.5*pow(dt,2)*(msg->linear_acceleration.z-9.7)<<std::endl;
+          //std::cout << __FILE__ << ":" << __LINE__  << "difference in x is " << 0.5*pow(dt,2)*(msg->linear_acceleration.x) <<"difference in y is "<<0.5*pow(dt,2)*(msg->linear_acceleration.y)<<"difference in z is "<<0.5*pow(dt,2)*(msg->linear_acceleration.z-9.7)<<std::endl;
 	  x_0 = x;
 	  y_0 = y;
 	  z_0 = z;
@@ -490,15 +491,17 @@ int uwb_count[3];
 //callback function for uwb sensor
 void uwb_start::callbackuwbranging(const gtec_msgs::RangingConstPtr msg, const std::string& topic){
 //see this condition properly
-  ROS_INFO("[uwb_start]: m here in callbackuwbranging tagid %s is range is %d from anchorid %s",msg->tagId.c_str() , msg->range, msg->anchorId.c_str() );
-  std::string uav_name = "uav"+msg->anchorId;
+  std::string uav_name = msg->anchorId;
   int uav_no = *(topic.c_str()+4); 
   uav_no = uav_no-48;
   uwb_count[uav_no] = 1;
   if(uwb_count[0]&&uwb_count[1]&&uwb_count[2])	
   	got_uwb_data=true;
   if(msg->range>2000)
-  	anchor[uav_name].tag[msg->tagId] = msg->range/1000;
+	{
+  	anchor[uav_name].tag[msg->tagId] = msg->range/1000.0000;
+	  std::cout << __FILE__ << ":" << __LINE__ << uav_name << "uwb reading updated " <<msg->tagId<<"this is written value"<<msg->range/1000<<"this is actual value"<<msg->range<<"this is what it sees"<<anchor[uav_name].tag[msg->tagId]<<std::endl; 	
+	}
 }
 //need to see this 
 
