@@ -217,6 +217,7 @@ void uwb_start::activate(void)
 	while(ros::ok()){
 	//
 	//std::cout << __FILE__ << ":" << __LINE__ <<"I GET IN WHILE got_sonar_data is" <<got_sonar_data<< "got_uwb_data is" <<got_uwb_data<< "got_imu_data is"<<got_imu_data<<std::endl;
+	//	
 	if((got_sonar_data)&&(got_uwb_data)&&(got_imu_data)){
 		int n=1;
 		float x=0,y=0,z=0,yaw=0;
@@ -225,6 +226,9 @@ void uwb_start::activate(void)
 		//ros::Duration(5).sleep();
 			uwb_start::takeoff(0,5);
 		  std::cout << __FILE__ << ":" << __LINE__ << "takeoff for uav1 complete sonar data" <<drones_sonar_locate["uav1"]<<"imu data is"<<drones_imu_locate["uav1"] <<std::endl; 
+			//while(!anchor["uav2"].tag["uav1"]){
+			//std::cout << __FILE__ << ":" << __LINE__ << "anchor[uav2].tag[uav1] is "<<anchor["uav2"].tag["uav1"]<<std::endl; 
+			//}
 			R1=anchor["uav2"].tag["uav1"];
 		  std::cout << __FILE__ << ":" << __LINE__ << "i got uwb distance for first and it is "<<R1<<std::endl; 
 		//ros::Duration(5).sleep();
@@ -441,8 +445,9 @@ int sonar_count[3];
 void uwb_start::callbacksonar(const sensor_msgs::RangeConstPtr msg, const std::string& topic){
   
   int uav_no = *(topic.c_str()+4); 
-  uav_no = uav_no-49;
+  uav_no = uav_no-48;
   std::string uav_name="uav"+std::to_string(uav_no);
+  uav_no--;
   sonar_count[uav_no] = 1;
   if(sonar_count[0]&&sonar_count[1]&&sonar_count[2])
 	{
@@ -464,14 +469,16 @@ void uwb_start::callbackimudata(const sensor_msgs::ImuConstPtr msg, const std::s
   double t;
   //std::cout << __FILE__ << ":" << __LINE__  << "[uwb_start]: m here in callbackimudata x_0 is " << x_0 <<" y_0 is "<<y_0<<"z_0 is "<<z_0<<std::endl; 
   int uav_no = *(topic.c_str()+4); 
-  uav_no = uav_no-49;
+  uav_no = uav_no-48;
+  std::string uav_name="uav"+std::to_string(uav_no);
+  uav_no--;
   imu_count[uav_no] = 1;
   		
   if(imu_count[0]&&imu_count[1]&&imu_count[2])	
   	{
 	  	got_imu_data=true;
 	}
-  std::string uav_name="uav"+std::to_string(uav_no);
+
 
   double dt = (msg->header.stamp.sec + (msg->header.stamp.nsec/pow(10,9))) - t ;
   t = msg->header.stamp.sec + (msg->header.stamp.nsec/pow(10,9));
@@ -506,12 +513,12 @@ void uwb_start::callbackuwbranging(const gtec_msgs::RangingConstPtr msg, const s
   if(uwb_count[0]&&uwb_count[1]&&uwb_count[2])	
   	{
 	  	got_uwb_data=true;
-		std::cout << __FILE__ << ":" << __LINE__  << " got uwb data changed "<<std::endl;
+		//std::cout << __FILE__ << ":" << __LINE__  << " got uwb data changed "<<std::endl;
 	}
   if(msg->range>2000)
 	{
   	anchor[uav_name].tag[msg->tagId] = msg->range/1000.0000;
-	  //std::cout << __FILE__ << ":" << __LINE__ << uav_name << "uwb reading updated " <<msg->tagId<<"this is written value"<<msg->range/1000<<"this is actual value"<<msg->range<<"this is what it sees"<<anchor[uav_name].tag[msg->tagId]<<std::endl; 	
+	  std::cout << __FILE__ << ":" << __LINE__ << uav_name << "uwb reading updated " <<msg->tagId<<"this is written value"<<msg->range/1000<<"this is actual value"<<msg->range<<"this is what it sees"<<anchor[uav_name].tag[msg->tagId]<<std::endl; 	
 	}
 }
 //need to see this 
