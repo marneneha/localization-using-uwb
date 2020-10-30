@@ -216,7 +216,7 @@ void uwb_start::activate(void)
 	//ros::Duration(15).sleep();
 	while(ros::ok()){
 	//
-	std::cout << __FILE__ << ":" << __LINE__ <<"I GET IN WHILE got_sonar_data is" <<got_sonar_data<< "got_uwb_data is" <<got_uwb_data<< "got_imu_data is"<<got_imu_data<<std::endl;
+	//std::cout << __FILE__ << ":" << __LINE__ <<"I GET IN WHILE got_sonar_data is" <<got_sonar_data<< "got_uwb_data is" <<got_uwb_data<< "got_imu_data is"<<got_imu_data<<std::endl;
 	if((got_sonar_data)&&(got_uwb_data)&&(got_imu_data)){
 		int n=1;
 		float x=0,y=0,z=0,yaw=0;
@@ -301,9 +301,9 @@ void uwb_start::takeoff(int client_id, float height)
 //set motors
 	//ros::Duration(5).sleep();
 	std::cout << __FILE__ << ":" << __LINE__ << "i am at takeoff start "  <<std::endl; 
-	motor_request.request.data = 1;
+	/*motor_request.request.data = 1;
 	motor_client[client_id].call(motor_request);
-	/*while(!motor_request.response.success)
+	while(!motor_request.response.success)
 	{
 		ros::Duration(.1).sleep();
 		motor_client[client_id].call(motor_request);
@@ -441,12 +441,16 @@ int sonar_count[3];
 void uwb_start::callbacksonar(const sensor_msgs::RangeConstPtr msg, const std::string& topic){
   
   int uav_no = *(topic.c_str()+4); 
-  uav_no = uav_no-48;
+  uav_no = uav_no-49;
   std::string uav_name="uav"+std::to_string(uav_no);
   sonar_count[uav_no] = 1;
-  if(sonar_count[0]&&sonar_count[1]&&sonar_count[2])	
-  	got_sonar_data=true;
-  std::cout << __FILE__ << ":" << __LINE__  << "callback sonar data uav name is " << uav_name <<"and range is "<<msg->range<<std::endl; 
+  if(sonar_count[0]&&sonar_count[1]&&sonar_count[2])
+	{
+	  	got_sonar_data=true;
+
+	}	
+
+  //std::cout << __FILE__ << ":" << __LINE__  << "callback sonar data uav name is " << uav_name <<"and range is "<<msg->range<<std::endl; 
   drones_sonar_locate[uav_name] = msg->range;
   drones_final_locate[uav_name].z=msg->range;
 }
@@ -460,10 +464,13 @@ void uwb_start::callbackimudata(const sensor_msgs::ImuConstPtr msg, const std::s
   double t;
   //std::cout << __FILE__ << ":" << __LINE__  << "[uwb_start]: m here in callbackimudata x_0 is " << x_0 <<" y_0 is "<<y_0<<"z_0 is "<<z_0<<std::endl; 
   int uav_no = *(topic.c_str()+4); 
-  uav_no = uav_no-48;
+  uav_no = uav_no-49;
   imu_count[uav_no] = 1;
+  		
   if(imu_count[0]&&imu_count[1]&&imu_count[2])	
-  	got_imu_data=true;
+  	{
+	  	got_imu_data=true;
+	}
   std::string uav_name="uav"+std::to_string(uav_no);
 
   double dt = (msg->header.stamp.sec + (msg->header.stamp.nsec/pow(10,9))) - t ;
@@ -483,7 +490,7 @@ void uwb_start::callbackimudata(const sensor_msgs::ImuConstPtr msg, const std::s
 	  X.z=z;
 	  drones_imu_locate[uav_name]=X;
 	  drones_final_locate[uav_name]=X;
-	  std::cout << __FILE__ << ":" << __LINE__  << "callback imu data uav name is " << uav_name <<"and data is "<<X<<std::endl; 
+	  //std::cout << __FILE__ << ":" << __LINE__  << "callback imu data uav name is " << uav_name <<"and data is "<<X<<std::endl; 
 	}
 c++;
 }
@@ -492,15 +499,19 @@ int uwb_count[3];
 void uwb_start::callbackuwbranging(const gtec_msgs::RangingConstPtr msg, const std::string& topic){
 //see this condition properly
   std::string uav_name = msg->anchorId;
-  int uav_no = *(topic.c_str()+4); 
-  uav_no = uav_no-48;
+  int uav_no = *((msg->anchorId).c_str()+3); 
+  uav_no = uav_no-49;
   uwb_count[uav_no] = 1;
+  //std::cout << __FILE__ << ":" << __LINE__ <<"uwb "<<
   if(uwb_count[0]&&uwb_count[1]&&uwb_count[2])	
-  	got_uwb_data=true;
+  	{
+	  	got_uwb_data=true;
+		std::cout << __FILE__ << ":" << __LINE__  << " got uwb data changed "<<std::endl;
+	}
   if(msg->range>2000)
 	{
   	anchor[uav_name].tag[msg->tagId] = msg->range/1000.0000;
-	  std::cout << __FILE__ << ":" << __LINE__ << uav_name << "uwb reading updated " <<msg->tagId<<"this is written value"<<msg->range/1000<<"this is actual value"<<msg->range<<"this is what it sees"<<anchor[uav_name].tag[msg->tagId]<<std::endl; 	
+	  //std::cout << __FILE__ << ":" << __LINE__ << uav_name << "uwb reading updated " <<msg->tagId<<"this is written value"<<msg->range/1000<<"this is actual value"<<msg->range<<"this is what it sees"<<anchor[uav_name].tag[msg->tagId]<<std::endl; 	
 	}
 }
 //need to see this 
