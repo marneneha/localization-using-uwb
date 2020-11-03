@@ -44,7 +44,7 @@ namespace localization
   {
   public:
 	virtual void onInit();
-
+	ros::NodeHandle nh;
 	struct locate{
 	//bool localization_enable;
 	//geometry_msgs::Point anchor[4];
@@ -125,9 +125,12 @@ namespace localization
 
 //init function
 namespace localization
-{	ros::NodeHandle nh("~");
+{	
+	//ros::NodeHandle nh("~");
+	//ros::NodeHandle nh = getMTPrivateNodeHandle();
 	void uwb_start::onInit()
 	{
+	ros::NodeHandle nh = getMTPrivateNodeHandle();
 	//load parameter rom launch file
 	mrs_lib::ParamLoader param_loader(nh, "uwb_start");
 	//param_loader.load_param("uav_name", _uav_name_);
@@ -203,7 +206,6 @@ ROS_INFO_ONCE("m here in init");
 	//while((!got_sonar_data)||(!got_imu_data)||(!got_uwb_data)){}
 		activate();	
 
-		ros::spin();
 	}
 
 
@@ -214,7 +216,7 @@ void uwb_start::activate(void)
 
 	  //std::cout << __FILE__ << ":" << __LINE__ << "activate function reached "  <<std::endl; 
 	//ros::Duration(15).sleep();
-	while(ros::ok()){
+	//while(ros::ok()){
 	//
 	//std::cout << __FILE__ << ":" << __LINE__ <<"I GET IN WHILE got_sonar_data is" <<got_sonar_data<< "got_uwb_data is" <<got_uwb_data<< "got_imu_data is"<<got_imu_data<<std::endl;
 	//	
@@ -300,8 +302,8 @@ void uwb_start::activate(void)
 			drones_final_locate["uav3"] = X;
 			movement();
 	}
-	ros::spinOnce();
-  }
+
+  //}
 	
 }
 

@@ -6,7 +6,7 @@
   <!--arg name="frame_id" value="gps_origin" /-->
 
   <arg name="simulation" default="true" />
-
+  <arg name="n_threads" default="9" />
   <!-- will it run using GNU debugger? -->
   <arg name="DEBUG" default="true" />
   <arg unless="$(arg DEBUG)" name="launch_prefix_debug" value=""/>

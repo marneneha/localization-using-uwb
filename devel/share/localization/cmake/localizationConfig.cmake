@@ -154,7 +154,7 @@ foreach(library ${libraries})
     set(lib_path "")
     set(lib "${library}-NOTFOUND")
     # since the path where the library is found is returned we have to iterate over the paths manually
-    foreach(path /home/neha/neha_ws2/devel/lib;/home/neha/uwb_sensors/devel/lib;/home/neha/uwb_msgs/devel/lib;/home/neha/neha_ws2/devel/lib;/home/neha/workspace/devel/lib;/home/neha/mrs_workspace/devel/lib;/opt/ros/melodic/lib)
+    foreach(path /home/neha/neha_ws2/devel/lib;/home/neha/workspace/devel/lib;/home/neha/mrs_workspace/devel/lib;/opt/ros/melodic/lib)
       find_library(lib ${library}
         PATHS ${path}
         NO_DEFAULT_PATH NO_CMAKE_FIND_ROOT_PATH)
