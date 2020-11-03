@@ -231,14 +231,15 @@ void uwb_start::activate(void)
 			//while(!anchor["uav2"].tag["uav1"]){
 			//std::cout << __FILE__ << ":" << __LINE__ << "anchor[uav2].tag[uav1] is "<<anchor["uav2"].tag["uav1"]<<std::endl; 
 			//}
+		//wait untill takeoff is complete
 			R1=anchor["uav2"].tag["uav1"];
 		  std::cout << __FILE__ << ":" << __LINE__ << "i got uwb distance for first and it is "<<R1<<std::endl; 
 		//ros::Duration(5).sleep();
 			std::cout << __FILE__ << ":" << __LINE__ << "z reading of final locate is "<<drones_final_locate["uav1"].z<<"reading from sonar is"<<drones_sonar_locate["uav1"]<<std::endl;
 			//while(drones_sonar_locate["uav1"]<1){}
 			//boost::shared_ptr<const> ros::topic::waitForMessage (const std::string &topic, ros::NodeHandle &nh );
-			auto temp_sonar = ros::topic::waitForMessage<sensor_msgs::Range>("/uav1/sensor/sonar_front");
-			std::cout << __FILE__ << ":" << __LINE__ << "z reading of final locate is "<<drones_final_locate["uav1"].z<<"reading from sonar is"<<drones_sonar_locate["uav1"]<<"after waiting "<<temp_sonar<<std::endl;
+			//auto temp_sonar = ros::topic::waitForMessage<sensor_msgs::Range>("/uav1/sensor/sonar_front");
+			//std::cout << __FILE__ << ":" << __LINE__ << "z reading of final locate is "<<drones_final_locate["uav1"].z<<"reading from sonar is"<<drones_sonar_locate["uav1"]<<"after waiting "<<temp_sonar<<std::endl;
 			r1=sqrt((pow(R1,2))-(pow(drones_sonar_locate["uav1"],2)));
 		  std::cout << __FILE__ << ":" << __LINE__ << "i got uwb distance for first circle radius is"<<r1<<std::endl; 
 			uwb_start::takeoff(1,1);
@@ -365,9 +366,12 @@ void uwb_start::takeoff(int client_id, float height)
 	  std::cout << __FILE__ << ":" << __LINE__ << "i am at takeoff end "  <<std::endl; 
 	//ros::Duration(5).sleep();
 }
-/*
+
 void uwb_start::callbackTimerPublishDistToWaypoint(const ros::TimerEvent& te)
 {
+	if(!path_set)
+	return;
+
 	std::map<std::string, mrs_msgs::ReferenceStamped>::iterator itr=new_waypoints.begin();
 
 	if(goal_set&&itr!=new_waypoints.end()){
@@ -410,7 +414,7 @@ new_waypoints["uav4"].reference.position.y = new_waypoints["uav4"].reference.pos
 new_waypoints["uav5"].reference.position.y = new_waypoints["uav5"].reference.position.y+15;
 new_waypoints["uav6"].reference.position.y = new_waypoints["uav6"].reference.position.y+15;
 
- }*/
+ }
  
 
 void uwb_start::callbackTimerUwbLocate(const ros::TimerEvent& te)
