@@ -20,6 +20,7 @@
 #include <mavros_msgs/CommandTOL.h>
 #include <mavros_msgs/CommandBool.h>
 #include <mavros_msgs/SetMode.h>
+#include <mavros_msgs/State.h>
 #include <std_srvs/SetBool.h>
 #include <mrs_msgs/ControlManagerDiagnostics.h>
 #include <mrs_msgs/Vec4.h>
@@ -63,6 +64,7 @@ namespace localization
 	void callbackuwbranging(const gtec_msgs::RangingConstPtr msg, const std::string& topic);
 	void callbacksonar(const sensor_msgs::RangeConstPtr msg, const std::string& topic);
 	void callbackimudata(const sensor_msgs::ImuConstPtr msg, const std::string& topic);
+	void callbackstatedata(const mavros_msgs::StateConstPtr msg, const std::string& topic);
 	double dist3d(const double ax, const double ay, const double az, const double bx, const double by, const double bz);
 	int neighbourtimer(void);
 	void callbackTimerPublishDistToWaypoint(const ros::TimerEvent& te);
@@ -76,6 +78,7 @@ namespace localization
   	std::vector<ros::Subscriber>                            sub_uav_sonar;
   	std::vector<ros::Subscriber>                            sub_uav_uwb_range;
   	std::vector<ros::Subscriber>                            sub_uav_imu;
+  	std::vector<ros::Subscriber>                            sub_uav_state;
   	std::vector<ros::ServiceClient>                         arm_client;
   	std::vector<ros::ServiceClient>                         motor_client;
   	std::vector<ros::ServiceClient>                         land_client;
@@ -93,6 +96,7 @@ namespace localization
   	std::map<std::string, geometry_msgs::Point> 		drones_uwb_data;
   	std::map<std::string, struct locate> 	        	anchor;
   	std::map<std::string, geometry_msgs::Point> 	        drones_final_locate;
+  	std::map<std::string, mavros_msgs::State> 	        current_state;
 
 	std::string 						rtk_gps;
 	std::string 						global;
@@ -105,6 +109,7 @@ namespace localization
 	std::string						_frame_id_;
 	bool 							_simulation_;
 	std::vector<ros::Publisher>				pub_reference_;
+	std::vector<ros::Publisher>				pub_reference_mavros;
 	ros::Timer 						timer_publish_dist_to_waypoint_;
 	ros::Timer 						timer_publish_uwb_locate;
 	std::map<std::string, mrs_msgs::ReferenceStamped>	new_waypoints;
@@ -138,12 +143,12 @@ namespace localization
 	param_loader.loadParam("frame_id", _frame_id_);
 	//param_loader.load_param("network/robot_names", other_drone_names_);
 	//param_loader.loadParam("tracker_diagnostics_in",tracker_diagnostics_in);
-	other_drone_names_ = {"uav1", "uav2", "uav3"};
+	other_drone_names_ = {"uav1"};
 	//subscrbing and publishing to respective topic 
 	for (unsigned long i = 0; i < other_drone_names_.size(); i++) {
 	//subscribe gps topic
 	std::string prediction_topic_name=std::string("/")+other_drone_names_[i]+std::string("/")+"rtk_gps"+std::string("/")+"global";
-	sub_uav_rtk_gps.push_back(nh.subscribe <mrs_msgs::RtkGps> (prediction_topic_name, 10, 						boost::bind(&uwb_start::callbackOtheruavcoordinates, this, _1, prediction_topic_name)));
+	//sub_uav_rtk_gps.push_back(nh.subscribe <mrs_msgs::RtkGps> (prediction_topic_name, 10,boost::bind(&uwb_start::callbackOtheruavcoordinates, this, _1, prediction_topic_name)));
  	ROS_INFO("[uwb_start]: subscribing to %s", prediction_topic_name.c_str());
 	//subscribe diagnostics topic
 	std::string diag_topic_name = std::string("/") + other_drone_names_[i] + std::string("/") +"control_manager"+std::string("/")+"diagnostics";    
@@ -153,20 +158,25 @@ namespace localization
 	std::string neha_uav = "/"+other_drone_names_[i]+"/control_manager/position_cmd";
 	pub_reference_.push_back(nh.advertise<mrs_msgs::ReferenceStamped>(neha_uav,1));
 	ROS_INFO("[uwb_start]:publishing to %s",neha_uav.c_str());
+
+	//advertise to px4 mavros
+	std::string setpoint_topic_name = "/"+other_drone_names_[i]+"mavros/setpoint_position/local";
+	pub_reference_mavros.push_back(nh.advertise<geometry_msgs::PoseStamped>(setpoint_topic_name,1));
 	//subscribe sonar topic
 	std::string sonar_topic_name=std::string("/")+other_drone_names_[i]+std::string("/")+"sensor"+std::string("/")+"sonar_front";
 	sub_uav_sonar.push_back(nh.subscribe <sensor_msgs::Range> (sonar_topic_name, 1, boost::bind(&uwb_start::callbacksonar, this, _1, sonar_topic_name)));
  	ROS_INFO("[uwb_start]: subscribing to %s", sonar_topic_name.c_str());
 
 	//suscribe imu topic  
-	std::string imu_topic_name=std::string("/")+other_drone_names_[i]+std::string("/")+"mavros"+std::string("/")+"imu"+std::string("/")+"data_raw"/*or data*/;
+	std::string imu_topic_name=std::string("/")+other_drone_names_[i]+std::string("/")+"mavros"+std::string("/")+"imu"+std::string("/")+"data_raw";
 	sub_uav_imu.push_back(nh.subscribe <sensor_msgs::Imu> (imu_topic_name, 1, boost::bind(&uwb_start::callbackimudata, this, _1, imu_topic_name)));
  	ROS_INFO("[uwb_start]: subscribing to %s", imu_topic_name.c_str());
 
+	//subscribe current state
+	std::string state_topic_name = std::string("/")+other_drone_names_[i]+ "/mavros/state";
+	sub_uav_state.push_back(nh.subscribe <mavros_msgs::State> (state_topic_name, 1, boost::bind(&uwb_start::callbackstatedata, this, _1, state_topic_name)));
+ 	ROS_INFO("[uwb_start]: subscribing to %s", state_topic_name.c_str());
 	//service call
-std::string motor_service_name = std::string("/")+other_drone_names_[i]+ "/control_manager/motors";
-	motor_client.push_back(nh.serviceClient<std_srvs::SetBool>(motor_service_name));
-
 	std::string arv_service_name = std::string("/")+other_drone_names_[i]+ "/mavros/cmd/arming";
 	arm_client.push_back(nh.serviceClient<mavros_msgs::CommandBool>(arv_service_name));
 	std::string land_service_name = std::string("/")+other_drone_names_[i]+ "/mavros/cmd/land";
@@ -179,9 +189,9 @@ std::string motor_service_name = std::string("/")+other_drone_names_[i]+ "/contr
 
 	}
 	//subscribe uwb topic  
-	std::string uwb_topic_name=std::string("/")+"gtec"+std::string("/")+"toa"+std::string("/")+"ranging";
-		sub_uav_uwb_range.push_back(nh.subscribe <gtec_msgs::Ranging> (uwb_topic_name, 1, boost::bind(&uwb_start::callbackuwbranging, this, _1, uwb_topic_name)));
-	 	ROS_INFO("[uwb_start]: subscribing to %s", uwb_topic_name.c_str());
+	//std::string uwb_topic_name=std::string("/")+"gtec"+std::string("/")+"toa"+std::string("/")+"ranging";
+		//sub_uav_uwb_range.push_back(nh.subscribe <gtec_msgs::Ranging> (uwb_topic_name, 1, boost::bind(&uwb_start::callbackuwbranging, this, _1, uwb_topic_name)));
+	 	//ROS_INFO("[uwb_start]: subscribing to %s", uwb_topic_name.c_str());
 	//subscrobe to pose topic 
 
 
@@ -192,8 +202,8 @@ std::string motor_service_name = std::string("/")+other_drone_names_[i]+ "/contr
         
 //---------------------timer------------------
 
-//timer_publish_dist_to_waypoint_ = nh.createTimer(ros::Rate(30), &uwb_start::callbackTimerPublishDistToWaypoint, this);
-timer_publish_uwb_locate = nh.createTimer(ros::Rate(10), &uwb_start::callbackTimerUwbLocate, this);
+	//timer_publish_dist_to_waypoint_ = nh.createTimer(ros::Rate(30), &uwb_start::callbackTimerPublishDistToWaypoint, this);
+	//timer_publish_uwb_locate = nh.createTimer(ros::Rate(10), &uwb_start::callbackTimerUwbLocate, this);
 //------------------------service--------------
 
 	
@@ -202,7 +212,7 @@ timer_publish_uwb_locate = nh.createTimer(ros::Rate(10), &uwb_start::callbackTim
 
 
 	
-ROS_INFO_ONCE("m here in init");
+	ROS_INFO_ONCE("m here in init");
 	//while((!got_sonar_data)||(!got_imu_data)||(!got_uwb_data)){}
 		activate();	
 
@@ -212,161 +222,71 @@ ROS_INFO_ONCE("m here in init");
 
 //activate fun this is fun to form a traingle of uav
 void uwb_start::activate(void)
-{
-
-	  //std::cout << __FILE__ << ":" << __LINE__ << "activate function reached "  <<std::endl; 
-	//ros::Duration(15).sleep();
-	//while(ros::ok()){
-	//
-	//std::cout << __FILE__ << ":" << __LINE__ <<"I GET IN WHILE got_sonar_data is" <<got_sonar_data<< "got_uwb_data is" <<got_uwb_data<< "got_imu_data is"<<got_imu_data<<std::endl;
-	//	
-	if((got_sonar_data)&&(got_uwb_data)&&(got_imu_data)){
+{	 
+	std::cout << __FILE__ << ":" << __LINE__ << "activate function started "  <<std::endl; 
+	while(ros::ok()){
+	if((got_sonar_data) &&(got_imu_data)){
 		int n=1;
-		float x=0,y=0,z=0,yaw=0;
-		float R1,r1,R2,r2,R3,r3,R4,r4,x2,y2,x3,y3,a,b,c,a1,b1,c1;
 		  std::cout << __FILE__ << ":" << __LINE__ << "activate function reached "  <<std::endl; 
-		//ros::Duration(5).sleep();
 			uwb_start::takeoff(0,2);
 		  std::cout << __FILE__ << ":" << __LINE__ << "takeoff for uav1 complete sonar data" <<drones_sonar_locate["uav1"]<<"imu data is"<<drones_imu_locate["uav1"] <<std::endl; 
-			//while(!anchor["uav2"].tag["uav1"]){
-			//std::cout << __FILE__ << ":" << __LINE__ << "anchor[uav2].tag[uav1] is "<<anchor["uav2"].tag["uav1"]<<std::endl; 
-			//}
-		//wait untill takeoff is complete
-			R1=anchor["uav2"].tag["uav1"];
-		  std::cout << __FILE__ << ":" << __LINE__ << "i got uwb distance for first and it is "<<R1<<std::endl; 
-		//ros::Duration(5).sleep();
 			std::cout << __FILE__ << ":" << __LINE__ << "z reading of final locate is "<<drones_final_locate["uav1"].z<<"reading from sonar is"<<drones_sonar_locate["uav1"]<<std::endl;
-			//while(drones_sonar_locate["uav1"]<1){}
-			//boost::shared_ptr<const> ros::topic::waitForMessage (const std::string &topic, ros::NodeHandle &nh );
-			//auto temp_sonar = ros::topic::waitForMessage<sensor_msgs::Range>("/uav1/sensor/sonar_front");
-			//std::cout << __FILE__ << ":" << __LINE__ << "z reading of final locate is "<<drones_final_locate["uav1"].z<<"reading from sonar is"<<drones_sonar_locate["uav1"]<<"after waiting "<<temp_sonar<<std::endl;
-			r1=sqrt((pow(R1,2))-(pow(drones_sonar_locate["uav1"],2)));
-		  std::cout << __FILE__ << ":" << __LINE__ << "i got uwb distance for first circle radius is"<<r1<<std::endl; 
-			uwb_start::takeoff(1,1);
-		  std::cout << __FILE__ << ":" << __LINE__ << "takeoff for uav2 complete sonar data" <<drones_sonar_locate["uav2"]<<"imu data is"<<drones_imu_locate["uav2"] <<std::endl; 
-			R2=anchor["uav2"].tag["uav1"];
-		  std::cout << __FILE__ << ":" << __LINE__ << "i got uwb distance for second and it is "<<R2<<std::endl; 
-			r2=sqrt((pow(R2,2))-(pow(drones_final_locate["uav2"].z,2)));
-			path_set=true;
-			uwb_start::goal("uav2",0,1,0,0);
-		  std::cout << __FILE__ << ":" << __LINE__ << "goal for uav2 done "  <<std::endl; 
-			while(!other_drones_diagnostics["uav2"]){}
-		  std::cout << __FILE__ << ":" << __LINE__ << "i got uwb distance for third and it is "<<anchor["uav2"].tag["uav1"]<<std::endl; 
-			n=anchor["uav2"].tag["uav1"]-R2;
-			if(n>0)
-			{
-			x2=(pow(r2,2)-pow(r1,2)+25)/10;
-			y2=sqrt(pow(r2,2)-pow(x,2))+1;
-			}
-			if(n<0)
-			{
-			x2=(pow(r2,2)-pow(r1,2)+25)/10;
-			y2=-sqrt(pow(r2,2)-pow(x,2))+1;
-			}
-			geometry_msgs::Point X;
-
-			X.x = x2;
-			X.y = y2;
-			X.z = drones_sonar_locate["uav2"];
-			drones_uwb_locate["uav2"] = X;
-			drones_final_locate["uav2"] = X;
-		  std::cout << __FILE__ << ":" << __LINE__ << "i am at final"  <<std::endl; 
-			R3=anchor["uav3"].tag["uav1"];
-			r3=sqrt((pow(R3,2))-(pow(drones_final_locate["uav1"].z,2)));
-			R4=anchor["uav3"].tag["uav2"];
-			r4=sqrt((pow(R4,2))-(pow(drones_final_locate["uav2"].z,2)));
-			uwb_start::takeoff(2,1);
-			while(!other_drones_diagnostics["uav3"]){}
-			n=anchor["uav2"].tag["uav1"]-R2;
-			//locate uav2 from above
-			a1=drones_final_locate["uav2"].x;
-			b1=drones_final_locate["uav2"].y;
-			c1=pow(r3,2)+pow(a1,2)+pow(b1,2)+2*b1-pow(r4,2);
-			b=-2*a1*c1;
-			a=pow(a1,2)+pow(b1,2);
-			c=pow(c1,2)-(pow(r3,2)*pow(b1,2));
-			if(n>0)
-			{
-			x3=(-b+sqrt(pow(b,2)-(4*a*c)))/(2*a);
-			y3=(c1-a1*x)/b1;
-			}
-			if(n<0)
-			{
-			x3=(-b-sqrt(pow(b,2)-(4*a*c)))/(2*a);
-			y3=(c1-a1*x)/b1;
-			}
-
-			X.x = x3;
-			X.y = y3;
-			X.z = drones_sonar_locate["uav3"];
-			drones_uwb_locate["uav3"] = X;
-			drones_final_locate["uav3"] = X;
-			movement();
+		  	//path_set=true;
+			//uwb_start::goal("uav1",0,1,0,0);
+			//while(!other_drones_diagnostics["uav2"]){}
+			
 	}
 
-  //}
+  }
 	
 }
 
 void uwb_start::takeoff(int client_id, float height)
 {
-//set motors
-	//ros::Duration(5).sleep();
 	std::cout << __FILE__ << ":" << __LINE__ << "i am at takeoff start "  <<std::endl; 
-	/*motor_request.request.data = 1;
-	motor_client[client_id].call(motor_request);
-	while(!motor_request.response.success)
-	{
-		ros::Duration(.1).sleep();
-		motor_client[client_id].call(motor_request);
-	}*/
+	
+
 	  std::cout << __FILE__ << ":" << __LINE__ << "motor on"  <<std::endl; 
+	//set mode
+	std::string uav_name = "uav"+client_id;
+	ros::Duration(5).sleep();
+	srv_setMode.request.base_mode = 0;
+	srv_setMode.request.custom_mode = "OFFBOARD";
+	set_mode_client[client_id].call(srv_setMode);
+		set_mode_client[client_id].call(srv_setMode);	
+		if(set_mode_client[client_id].call(srv_setMode)){
+		ROS_INFO("setmode send ok offboard enabled");
+		}else{
+		      ROS_ERROR("Failed SetMode");
+		}
+    geometry_msgs::PoseStamped pose;
+    pose.pose.position.x = 0;
+    pose.pose.position.y = 0;
+    pose.pose.position.z = 2;
+	
+
 	//set arm
 	ros::Duration(5).sleep();
 	arm_request.request.value = true;
 	arm_client[client_id].call(arm_request);
-	while(!arm_request.response.success)
-	{
+
+	  std::cout << __FILE__ << ":" << __LINE__ << "i am getting in while loop"  <<std::endl; 
 		ros::Duration(.1).sleep();
 		arm_client[client_id].call(arm_request);
-	}
-	  std::cout << __FILE__ << ":" << __LINE__ << "arming done "  <<std::endl; 
-	if(arm_request.response.success)
+		if(arm_request.response.success)
 		{
+	  std::cout << __FILE__ << ":" << __LINE__ << "i am getting in if loop"  <<std::endl; 
 			ROS_INFO("Arming Successful");	
 		}
-	//set mode
-	ros::Duration(5).sleep();
-	srv_setMode.request.base_mode = 0;
-	srv_setMode.request.custom_mode = "offboard";
-	set_mode_client[client_id].call(srv_setMode);
-
-	if(set_mode_client[client_id].call(srv_setMode)){
-		ROS_INFO("setmode send ok");
-	}else{
-	      ROS_ERROR("Failed SetMode");
+	
+	
+	while(!other_drones_diagnostics[uav_name]){
+        pub_reference_mavros[client_id].publish(pose);
 	}
-	//takeoff
-	//ros::Duration(5).sleep();
-	if(arm_request.response.success){
-		srv_takeoff.request.altitude = height;
-		takeoff_client[client_id].call(srv_takeoff);
-		while(!srv_takeoff.response.success)
-		{
-			ros::Duration(.1).sleep();
-			takeoff_client[client_id].call(srv_takeoff);
-		}
-
-		if(takeoff_client[client_id].call(srv_takeoff)){
-			ROS_INFO("takeoff %d", srv_takeoff.response.success);
-		}else{
-			ROS_ERROR("Failed Takeoff");
-		}
-		}
 	  std::cout << __FILE__ << ":" << __LINE__ << "i am at takeoff end "  <<std::endl; 
-	//ros::Duration(5).sleep();
-}
 
+}
+/*
 void uwb_start::callbackTimerPublishDistToWaypoint(const ros::TimerEvent& te)
 {
 	if(!path_set)
@@ -389,7 +309,7 @@ void uwb_start::callbackTimerPublishDistToWaypoint(const ros::TimerEvent& te)
 
 //goto function
 void uwb_start::goal(std::string uav_name, float x, float y, float z, float yaw){
-mrs_msgs::ReferenceStamped new_waypoint;
+	mrs_msgs::ReferenceStamped new_waypoint;
 	new_waypoint.header.frame_id = uav_name +"/"+ _frame_id_;
 	ROS_INFO("hii neha its me %s",uav_name.c_str());	
 	new_waypoint.header.stamp         = ros::Time::now();
@@ -399,59 +319,9 @@ mrs_msgs::ReferenceStamped new_waypoint;
 	new_waypoint.reference.heading    = yaw;
 	new_waypoints[uav_name]=new_waypoint;
 	ROS_INFO("[uwb_start]: Flying to waypoint : x: %2.2f y: %2.2f z: %2.2f yaw: %2.2f uav name: %s",new_waypoint.reference.position.x, new_waypoint.reference.position.y, new_waypoint.reference.position.z, new_waypoint.reference.heading, uav_name.c_str() );
-goal_set =true;
+	goal_set =true;
 }
-//localization algo 
-//clear
-//or mrs_msgs::RtkGps::ConstPtr&
- 
- 
-void uwb_start::movement(){
-new_waypoints["uav1"].reference.position.y = new_waypoints["uav1"].reference.position.y+15;
-new_waypoints["uav2"].reference.position.y = new_waypoints["uav2"].reference.position.y+15;
-new_waypoints["uav3"].reference.position.y = new_waypoints["uav3"].reference.position.y+15;
-new_waypoints["uav4"].reference.position.y = new_waypoints["uav4"].reference.position.y+15;
-new_waypoints["uav5"].reference.position.y = new_waypoints["uav5"].reference.position.y+15;
-new_waypoints["uav6"].reference.position.y = new_waypoints["uav6"].reference.position.y+15;
-
- }
- 
-
-void uwb_start::callbackTimerUwbLocate(const ros::TimerEvent& te)
-{
-	if(path_set==true){
-	ROS_INFO("[uwb_start]: m here in uwblocate");
-	std::map<std::string, struct locate>::iterator anchor_itr; 
-	std::map<std::string, float>::iterator tag_itr; 
-
-	for(anchor_itr = anchor.begin(); anchor_itr != anchor.end(); anchor_itr++){
-	tag_itr = ((anchor_itr->second).tag).begin(); 
-	Eigen::MatrixXd A (2,2);
-	A<< ((drones_final_locate[next(tag_itr, 1)->first].x-drones_final_locate[tag_itr->first].x), (drones_final_locate[next(tag_itr, 1)->first].y-drones_final_locate[tag_itr->first].y), (drones_final_locate[next(tag_itr, 2)->first].x-drones_final_locate[next(tag_itr, 1)->first].x), (drones_final_locate[next(tag_itr, 2)->first].y-drones_final_locate[next(tag_itr, 1)->first].y));
-
-	Eigen::MatrixXd B(2,1);
-	B<< ((pow(tag_itr->second,2))-(pow((drones_sonar_locate[anchor_itr->first]-drones_final_locate[tag_itr->first].z),2))-(pow(drones_final_locate[tag_itr->first].x,2))-(pow(drones_final_locate[tag_itr->first].y,2)))-((pow((next(tag_itr, 1))->second,2))-(pow((drones_sonar_locate[anchor_itr->first]-drones_final_locate[(next(tag_itr, 1))->first].z),2))-(pow(drones_final_locate[(next(tag_itr, 1))->first].x,2))-(pow(drones_final_locate[(next(tag_itr, 1))->first].y,2))),
-	((pow(next(tag_itr, 1)->second,2))-(pow((drones_sonar_locate[anchor_itr->first]-drones_final_locate[next(tag_itr, 1)->first].z),2))-(pow(drones_final_locate[next(tag_itr, 1)->first].x,2))-(pow(drones_final_locate[next(tag_itr, 1)->first].y,2)))-((pow((next(tag_itr, 2))->second,2))-(pow((drones_sonar_locate[anchor_itr->first]-drones_final_locate[(next(tag_itr, 2))->first].z),2))-(pow(drones_final_locate[(next(tag_itr, 2))->first].x,2))-(pow(drones_final_locate[(next(tag_itr, 2))->first].y,2)));
-
-	geometry_msgs::Point X;
-
-	X.x = (A.inverse()*B)(0);
-	X.y = (A.inverse()*B)(1);
-	X.z = drones_sonar_locate[anchor_itr->first];
-	drones_uwb_locate[anchor_itr->first] = X;
-	drones_final_locate[anchor_itr->first] = X;	
-	}
-  }
-}
-
-
-void uwb_start::callbackOtheruavcoordinates(const mrs_msgs::RtkGpsConstPtr msg, const std::string& topic){
-  ROS_INFO("[uwb_start]: m here in callbackOtheruavcoordinates");
-  int uav_no = *(topic.c_str()+3); 
-  //std::string uav_name="uav"+uav_name-1;
-  std::string uav_name="uav"+uav_no;
-  drones_gps_locate[uav_name]=*msg;
-}
+*/
 int sonar_count[3];
 //callback function for sonar 
 void uwb_start::callbacksonar(const sensor_msgs::RangeConstPtr msg, const std::string& topic){
@@ -461,13 +331,7 @@ void uwb_start::callbacksonar(const sensor_msgs::RangeConstPtr msg, const std::s
   std::string uav_name="uav"+std::to_string(uav_no);
   uav_no--;
   sonar_count[uav_no] = 1;
-  if(sonar_count[0]&&sonar_count[1]&&sonar_count[2])
-	{
-	  	got_sonar_data=true;
-
-	}	
-
-
+  got_sonar_data=true;
   drones_sonar_locate[uav_name] = msg->range;
   drones_final_locate[uav_name].z=msg->range;
   if(uav_name == "uav1")
@@ -481,19 +345,13 @@ double x_0 =0,y_0 =0,z_0 =0;
 int imu_count[3];
 void uwb_start::callbackimudata(const sensor_msgs::ImuConstPtr msg, const std::string& topic){
   double t;
-  //std::cout << __FILE__ << ":" << __LINE__  << "[uwb_start]: m here in callbackimudata x_0 is " << x_0 <<" y_0 is "<<y_0<<"z_0 is "<<z_0<<std::endl; 
+  std::cout << __FILE__ << ":" << __LINE__  << "[uwb_start]: m here in callbackimudata x_0 is " << x_0 <<" y_0 is "<<y_0<<"z_0 is "<<z_0<<std::endl; 
   int uav_no = *(topic.c_str()+4); 
   uav_no = uav_no-48;
   std::string uav_name="uav"+std::to_string(uav_no);
   uav_no--;
   imu_count[uav_no] = 1;
-  		
-  if(imu_count[0]&&imu_count[1]&&imu_count[2])	
-  	{
-	  	got_imu_data=true;
-	}
-
-
+  got_imu_data=true;
   double dt = (msg->header.stamp.sec + (msg->header.stamp.nsec/pow(10,9))) - t ;
   t = msg->header.stamp.sec + (msg->header.stamp.nsec/pow(10,9));
   //std::cout << __FILE__ << ":" << __LINE__  << "time is " << t <<"time difference is "<<dt<<std::endl;
@@ -515,45 +373,14 @@ void uwb_start::callbackimudata(const sensor_msgs::ImuConstPtr msg, const std::s
 	}
 c++;
 }
-int uwb_count[3];
-//callback function for uwb sensor
-void uwb_start::callbackuwbranging(const gtec_msgs::RangingConstPtr msg, const std::string& topic){
-//see this condition properly
-  std::string uav_name = msg->anchorId;
-  int uav_no = *((msg->anchorId).c_str()+3); 
-  uav_no = uav_no-49;
-  uwb_count[uav_no] = 1;
-  //std::cout << __FILE__ << ":" << __LINE__ <<"uwb "<<
-  if(uwb_count[0]&&uwb_count[1]&&uwb_count[2])	
-  	{
-	  	got_uwb_data=true;
-		//std::cout << __FILE__ << ":" << __LINE__  << " got uwb data changed "<<std::endl;
-	}
-  if(msg->range>2000)
-	{
-  	anchor[uav_name].tag[msg->tagId] = msg->range/1000.0000;
-	  //std::cout << __FILE__ << ":" << __LINE__ << uav_name << "uwb reading updated " <<msg->tagId<<"this is written value"<<msg->range/1000<<"this is actual value"<<msg->range<<"this is what it sees"<<anchor[uav_name].tag[msg->tagId]<<std::endl; 	
-	}
+
+void uwb_start::callbackstatedata(const mavros_msgs::StateConstPtr msg, const std::string& topic){
+
+int uav_no = *(topic.c_str()+4); 
+  uav_no = uav_no-48;
+  std::string uav_name="uav"+std::to_string(uav_no);
+current_state[uav_name] = *msg;
 }
-//need to see this 
-
-
-
-
-
-
-//more time lag
-//check no. of neighbour
-//unnecesarry function
-/*void uwb_start::callbackOdomGt(const nav_msgs::OdometryConstPtr& msg){
-  ROS_INFO_ONCE("m here in callbackOdomGt");
-  odom_gt_ = *msg;		
-}
-void uwb_start::callbackOdomUav(const nav_msgs::OdometryConstPtr& msg){
-  ROS_INFO_ONCE("m here in callbackOdomUav");
-  odom_uav_ = *msg;		
-  }
-*/
 void uwb_start::callbackTrackerDiag(const mrs_msgs::ControlManagerDiagnosticsConstPtr msg, const std::string& topic){
   ROS_INFO_ONCE("m here in callbackTrackerDiag");
   int uav_no = *(topic.c_str()+4); 
@@ -563,13 +390,8 @@ void uwb_start::callbackTrackerDiag(const mrs_msgs::ControlManagerDiagnosticsCon
   other_drones_diagnostics[uav_name] = msg->tracker_status.have_goal;  
   if (!msg->tracker_status.have_goal){
   //std::cout << __FILE__ << ":" << __LINE__ << uav_name << "waypoint reached "  <<std::endl; 
-    uwb_start::activate();
   }
 }
 
-double dist3d(const double ax, const double ay, const double az, const double bx, const double by, const double bz) {
-
-  return sqrt(pow(ax - bx, 2) + pow(ay - by, 2) + pow(az - bz, 2));
-}
 }
 PLUGINLIB_EXPORT_CLASS(localization::uwb_start, nodelet::Nodelet);
