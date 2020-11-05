@@ -66,6 +66,8 @@ namespace localization
 	void callbackimudata(const sensor_msgs::ImuConstPtr msg, const std::string& topic);
 	void callbackstatedata(const mavros_msgs::StateConstPtr msg, const std::string& topic);
 	double dist3d(const double ax, const double ay, const double az, const double bx, const double by, const double bz);
+	void callbackGroundTruth(const nav_msgs::OdometryConstPtr msg,const std::string& topic);
+
 	int neighbourtimer(void);
 	void callbackTimerPublishDistToWaypoint(const ros::TimerEvent& te);
 	void callbackTimerUwbLocate(const ros::TimerEvent& te);
@@ -84,6 +86,9 @@ namespace localization
   	std::vector<ros::ServiceClient>                         land_client;
   	std::vector<ros::ServiceClient>                         set_mode_client;
   	std::vector<ros::ServiceClient>                         takeoff_client;
+	std::vector<ros::Subscriber>                            sub_gt;
+
+
 
 	//drones name
   	std::vector<std::string>                                other_drone_names_;
@@ -97,7 +102,7 @@ namespace localization
   	std::map<std::string, struct locate> 	        	anchor;
   	std::map<std::string, geometry_msgs::Point> 	        drones_final_locate;
   	std::map<std::string, mavros_msgs::State> 	        current_state;
-
+	std::map<int, geometry_msgs::Point>			current_position;
 	std::string 						rtk_gps;
 	std::string 						global;
 	std::string						control_manager;
@@ -160,7 +165,7 @@ namespace localization
 	ROS_INFO("[uwb_start]:publishing to %s",neha_uav.c_str());
 
 	//advertise to px4 mavros
-	std::string setpoint_topic_name = "/"+other_drone_names_[i]+"mavros/setpoint_position/local";
+	std::string setpoint_topic_name = "/"+other_drone_names_[i]+"mavros/local_position/pose";
 	pub_reference_mavros.push_back(nh.advertise<geometry_msgs::PoseStamped>(setpoint_topic_name,1));
 	//subscribe sonar topic
 	std::string sonar_topic_name=std::string("/")+other_drone_names_[i]+std::string("/")+"sensor"+std::string("/")+"sonar_front";
@@ -176,6 +181,11 @@ namespace localization
 	std::string state_topic_name = std::string("/")+other_drone_names_[i]+ "/mavros/state";
 	sub_uav_state.push_back(nh.subscribe <mavros_msgs::State> (state_topic_name, 1, boost::bind(&uwb_start::callbackstatedata, this, _1, state_topic_name)));
  	ROS_INFO("[uwb_start]: subscribing to %s", state_topic_name.c_str());
+
+	//subscribe ground truth
+	std::string gt_topic_name = std::string("/") + other_drone_names_[i] + std::string("/") + "odometry" + std::string("/") + "odom_main";
+	sub_gt.push_back(nh.subscribe <nav_msgs::Odometry> (gt_topic_name, 10, boost::bind(&uwb_start::callbackGroundTruth, this, _1, gt_topic_name)));
+	ROS_INFO("[neha1]:publishing to %s",gt_topic_name.c_str());
 	//service call
 	std::string arv_service_name = std::string("/")+other_drone_names_[i]+ "/mavros/cmd/arming";
 	arm_client.push_back(nh.serviceClient<mavros_msgs::CommandBool>(arv_service_name));
@@ -183,7 +193,7 @@ namespace localization
 	land_client.push_back(nh.serviceClient<mavros_msgs::CommandTOL>(land_service_name));
 	std::string mode_service_name = std::string("/")+other_drone_names_[i]+ "/mavros/set_mode";
 	set_mode_client.push_back(nh.serviceClient<mavros_msgs::SetMode>(mode_service_name));
-	std::string takeoff_service_name = std::string("/")+other_drone_names_[i]+ "/mavros/cmd/takeoff";
+	std::string takeoff_service_name = std::string("/")+other_drone_names_[i]+ "/uav_manager/takeoff";
 	takeoff_client.push_back(nh.serviceClient<mavros_msgs::CommandTOL>(takeoff_service_name));
 
 
@@ -244,46 +254,61 @@ void uwb_start::activate(void)
 void uwb_start::takeoff(int client_id, float height)
 {
 	std::cout << __FILE__ << ":" << __LINE__ << "i am at takeoff start "  <<std::endl; 
-	
-
+	/*motor_request.request.data = 1;
+	motor_client[client_id].call(motor_request);
+	while(!motor_request.response.success)
+	{
+		ros::Duration(.1).sleep();
+		motor_client[client_id].call(motor_request);
+	}*/
 	  std::cout << __FILE__ << ":" << __LINE__ << "motor on"  <<std::endl; 
-	//set mode
-	std::string uav_name = "uav"+client_id;
-	ros::Duration(5).sleep();
-	srv_setMode.request.base_mode = 0;
-	srv_setMode.request.custom_mode = "OFFBOARD";
-	set_mode_client[client_id].call(srv_setMode);
-		set_mode_client[client_id].call(srv_setMode);	
-		if(set_mode_client[client_id].call(srv_setMode)){
-		ROS_INFO("setmode send ok offboard enabled");
-		}else{
-		      ROS_ERROR("Failed SetMode");
-		}
-    geometry_msgs::PoseStamped pose;
-    pose.pose.position.x = 0;
-    pose.pose.position.y = 0;
-    pose.pose.position.z = 2;
-	
-
 	//set arm
 	ros::Duration(5).sleep();
 	arm_request.request.value = true;
 	arm_client[client_id].call(arm_request);
-
-	  std::cout << __FILE__ << ":" << __LINE__ << "i am getting in while loop"  <<std::endl; 
+	while(!arm_request.response.success)
+	{
 		ros::Duration(.1).sleep();
 		arm_client[client_id].call(arm_request);
-		if(arm_request.response.success)
+	}
+	  std::cout << __FILE__ << ":" << __LINE__ << "arming done "  <<std::endl; 
+	if(arm_request.response.success)
 		{
-	  std::cout << __FILE__ << ":" << __LINE__ << "i am getting in if loop"  <<std::endl; 
 			ROS_INFO("Arming Successful");	
 		}
+	//set mode
+	ros::Duration(5).sleep();
+	srv_setMode.request.base_mode = 0;
+	srv_setMode.request.custom_mode = "offboard";
+	set_mode_client[client_id].call(srv_setMode);
+
+	if(set_mode_client[client_id].call(srv_setMode)){
+		ROS_INFO("setmode send ok");
+	}else{
+	      ROS_ERROR("Failed SetMode");
+	}
+	geometry_msgs::PoseStamped pose;
+    	pose.pose.position.x = 0;
+    	pose.pose.position.y = 29.45;
+    	pose.pose.position.z = 2;
 	
-	
-	while(!other_drones_diagnostics[uav_name]){
-        pub_reference_mavros[client_id].publish(pose);
+
+	//takeoff
+	//ros::Duration(5).sleep();
+	if(arm_request.response.success){
+	  std::cout << __FILE__ << ":" << __LINE__ << "i am inside if after arming"  <<std::endl;
+		for(int i = 100; ros::ok() && i > 0; --i){
+        	pub_reference_mavros[client_id].publish(pose);
+		ros::spinOnce();
+		ros::Duration(.1).sleep();
+	    }
+		
+		while(true){
+        	pub_reference_mavros[client_id].publish(pose);
+		}
 	}
 	  std::cout << __FILE__ << ":" << __LINE__ << "i am at takeoff end "  <<std::endl; 
+	//ros::Duration(5).sleep();
 
 }
 /*
@@ -334,8 +359,8 @@ void uwb_start::callbacksonar(const sensor_msgs::RangeConstPtr msg, const std::s
   got_sonar_data=true;
   drones_sonar_locate[uav_name] = msg->range;
   drones_final_locate[uav_name].z=msg->range;
-  if(uav_name == "uav1")
-  std::cout << __FILE__ << ":" << __LINE__  << "callback sonar data uav name is " << uav_name <<"and range is "<<msg->range<<"data seen as sonar is"<<drones_sonar_locate["uav1"]<<"data seen as final locate is"<<drones_final_locate["uav1"].z<<std::endl; 
+  //if(uav_name == "uav1")
+  //std::cout << __FILE__ << ":" << __LINE__  << "callback sonar data uav name is " << uav_name <<"and range is "<<msg->range<<"data seen as sonar is"<<drones_sonar_locate["uav1"]<<"data seen as final locate is"<<drones_final_locate["uav1"].z<<std::endl; 
 }
 
 //callback function for imu sensor
@@ -345,7 +370,7 @@ double x_0 =0,y_0 =0,z_0 =0;
 int imu_count[3];
 void uwb_start::callbackimudata(const sensor_msgs::ImuConstPtr msg, const std::string& topic){
   double t;
-  std::cout << __FILE__ << ":" << __LINE__  << "[uwb_start]: m here in callbackimudata x_0 is " << x_0 <<" y_0 is "<<y_0<<"z_0 is "<<z_0<<std::endl; 
+  //std::cout << __FILE__ << ":" << __LINE__  << "[uwb_start]: m here in callbackimudata x_0 is " << x_0 <<" y_0 is "<<y_0<<"z_0 is "<<z_0<<std::endl; 
   int uav_no = *(topic.c_str()+4); 
   uav_no = uav_no-48;
   std::string uav_name="uav"+std::to_string(uav_no);
@@ -373,13 +398,19 @@ void uwb_start::callbackimudata(const sensor_msgs::ImuConstPtr msg, const std::s
 	}
 c++;
 }
-
+void uwb_start::callbackGroundTruth(const nav_msgs::OdometryConstPtr msg,const std::string& topic){
+int uav_no = *(topic.c_str()+4);
+uav_no = uav_no-49;
+current_position[uav_no] = msg->pose.pose.position;
+//current_orintation[uav_no] = msg->pose.pose.orientation;
+}
 void uwb_start::callbackstatedata(const mavros_msgs::StateConstPtr msg, const std::string& topic){
 
 int uav_no = *(topic.c_str()+4); 
   uav_no = uav_no-48;
   std::string uav_name="uav"+std::to_string(uav_no);
 current_state[uav_name] = *msg;
+  //std::cout << __FILE__ << ":" << __LINE__ << uav_name << "msg arm state 1 is" <<msg->armed<<"msg arm state 2 is"<<current_state[uav_name].armed <<std::endl; 
 }
 void uwb_start::callbackTrackerDiag(const mrs_msgs::ControlManagerDiagnosticsConstPtr msg, const std::string& topic){
   ROS_INFO_ONCE("m here in callbackTrackerDiag");
