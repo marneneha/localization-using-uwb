@@ -216,7 +216,7 @@ void uwb_start::activate(void)
 
 	  //std::cout << __FILE__ << ":" << __LINE__ << "activate function reached "  <<std::endl; 
 	//ros::Duration(15).sleep();
-	//while(ros::ok()){
+	while(ros::ok()){
 	//
 	//std::cout << __FILE__ << ":" << __LINE__ <<"I GET IN WHILE got_sonar_data is" <<got_sonar_data<< "got_uwb_data is" <<got_uwb_data<< "got_imu_data is"<<got_imu_data<<std::endl;
 	//	
@@ -303,7 +303,7 @@ void uwb_start::activate(void)
 			movement();
 	}
 
-  //}
+  }
 	
 }
 
@@ -466,8 +466,8 @@ void uwb_start::callbacksonar(const sensor_msgs::RangeConstPtr msg, const std::s
 
   drones_sonar_locate[uav_name] = msg->range;
   drones_final_locate[uav_name].z=msg->range;
-  if(uav_name == "uav1")
-  std::cout << __FILE__ << ":" << __LINE__  << "callback sonar data uav name is " << uav_name <<"and range is "<<msg->range<<"data seen as sonar is"<<drones_sonar_locate["uav1"]<<"data seen as final locate is"<<drones_final_locate["uav1"].z<<std::endl; 
+  //if(uav_name == "uav1")
+  //std::cout << __FILE__ << ":" << __LINE__  << "callback sonar data uav name is " << uav_name <<"and range is "<<msg->range<<"data seen as sonar is"<<drones_sonar_locate["uav1"]<<"data seen as final locate is"<<drones_final_locate["uav1"].z<<std::endl; 
 }
 
 //callback function for imu sensor
@@ -559,7 +559,7 @@ void uwb_start::callbackTrackerDiag(const mrs_msgs::ControlManagerDiagnosticsCon
   other_drones_diagnostics[uav_name] = msg->tracker_status.have_goal;  
   if (!msg->tracker_status.have_goal){
   //std::cout << __FILE__ << ":" << __LINE__ << uav_name << "waypoint reached "  <<std::endl; 
-    uwb_start::activate();
+    //uwb_start::activate();
   }
 }
 
