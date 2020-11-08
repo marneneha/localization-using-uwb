@@ -173,10 +173,8 @@ std::string motor_service_name = std::string("/")+other_drone_names_[i]+ "/contr
 	land_client.push_back(nh.serviceClient<mavros_msgs::CommandTOL>(land_service_name));
 	std::string mode_service_name = std::string("/")+other_drone_names_[i]+ "/mavros/set_mode";
 	set_mode_client.push_back(nh.serviceClient<mavros_msgs::SetMode>(mode_service_name));
-	std::string takeoff_service_name = std::string("/")+other_drone_names_[i]+ "/mavros/cmd/takeoff";
+	std::string takeoff_service_name = std::string("/")+other_drone_names_[i]+ "/uav_manager/takeoff";
 	takeoff_client.push_back(nh.serviceClient<mavros_msgs::CommandTOL>(takeoff_service_name));
-
-
 	}
 	//subscribe uwb topic  
 	std::string uwb_topic_name=std::string("/")+"gtec"+std::string("/")+"toa"+std::string("/")+"ranging";
@@ -213,13 +211,7 @@ ROS_INFO_ONCE("m here in init");
 //activate fun this is fun to form a traingle of uav
 void uwb_start::activate(void)
 {
-
-	  //std::cout << __FILE__ << ":" << __LINE__ << "activate function reached "  <<std::endl; 
-	//ros::Duration(15).sleep();
-	while(ros::ok()){
-	//
-	//std::cout << __FILE__ << ":" << __LINE__ <<"I GET IN WHILE got_sonar_data is" <<got_sonar_data<< "got_uwb_data is" <<got_uwb_data<< "got_imu_data is"<<got_imu_data<<std::endl;
-	//	
+	while(ros::ok()){	
 	if((got_sonar_data)&&(got_uwb_data)&&(got_imu_data)){
 		int n=1;
 		float x=0,y=0,z=0,yaw=0;
@@ -233,15 +225,12 @@ void uwb_start::activate(void)
 			//}
 			R1=anchor["uav2"].tag["uav1"];
 		  std::cout << __FILE__ << ":" << __LINE__ << "i got uwb distance for first and it is "<<R1<<std::endl; 
-		//ros::Duration(5).sleep();
 			std::cout << __FILE__ << ":" << __LINE__ << "z reading of final locate is "<<drones_final_locate["uav1"].z<<"reading from sonar is"<<drones_sonar_locate["uav1"]<<std::endl;
-			//while(drones_sonar_locate["uav1"]<1){}
-			//boost::shared_ptr<const> ros::topic::waitForMessage (const std::string &topic, ros::NodeHandle &nh );
 			auto temp_sonar = ros::topic::waitForMessage<sensor_msgs::Range>("/uav1/sensor/sonar_front");
 			std::cout << __FILE__ << ":" << __LINE__ << "z reading of final locate is "<<drones_final_locate["uav1"].z<<"reading from sonar is"<<drones_sonar_locate["uav1"]<<"after waiting "<<temp_sonar<<std::endl;
 			r1=sqrt((pow(R1,2))-(pow(drones_sonar_locate["uav1"],2)));
 		  std::cout << __FILE__ << ":" << __LINE__ << "i got uwb distance for first circle radius is"<<r1<<std::endl; 
-			uwb_start::takeoff(1,1);
+			uwb_start::takeoff(1,1.5);
 		  std::cout << __FILE__ << ":" << __LINE__ << "takeoff for uav2 complete sonar data" <<drones_sonar_locate["uav2"]<<"imu data is"<<drones_imu_locate["uav2"] <<std::endl; 
 			R2=anchor["uav2"].tag["uav1"];
 		  std::cout << __FILE__ << ":" << __LINE__ << "i got uwb distance for second and it is "<<R2<<std::endl; 
@@ -263,7 +252,6 @@ void uwb_start::activate(void)
 			y2=-sqrt(pow(r2,2)-pow(x,2))+1;
 			}
 			geometry_msgs::Point X;
-
 			X.x = x2;
 			X.y = y2;
 			X.z = drones_sonar_locate["uav2"];
@@ -319,7 +307,7 @@ void uwb_start::takeoff(int client_id, float height)
 		ros::Duration(.1).sleep();
 		motor_client[client_id].call(motor_request);
 	}*/
-	  std::cout << __FILE__ << ":" << __LINE__ << "motor on"  <<std::endl; 
+	//std::cout << __FILE__ << ":" << __LINE__ << "motor on"  <<std::endl; 
 	//set arm
 	ros::Duration(5).sleep();
 	arm_request.request.value = true;
@@ -329,7 +317,7 @@ void uwb_start::takeoff(int client_id, float height)
 		ros::Duration(.1).sleep();
 		arm_client[client_id].call(arm_request);
 	}
-	  std::cout << __FILE__ << ":" << __LINE__ << "arming done "  <<std::endl; 
+	std::cout << __FILE__ << ":" << __LINE__ << "arming done "  <<std::endl; 
 	if(arm_request.response.success)
 		{
 			ROS_INFO("Arming Successful");	
