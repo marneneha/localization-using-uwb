@@ -81,6 +81,7 @@ namespace localization
   	std::vector<ros::ServiceClient>                         land_client;
   	std::vector<ros::ServiceClient>                         set_mode_client;
   	std::vector<ros::ServiceClient>                         takeoff_client;
+	ros::ServiceClient					takeoff_client1;
 
 	//drones name
   	std::vector<std::string>                                other_drone_names_;
@@ -111,9 +112,9 @@ namespace localization
 	bool 							path_set=false;
 	bool 							goal_set=false;
 	mavros_msgs::CommandBool 				arm_request;
-	mavros_msgs::CommandTOL 				srv_takeoff;
 	mavros_msgs::SetMode 					srv_setMode;
 	std_srvs::SetBool					motor_request;
+	std_srvs::Trigger					srv_takeoff;
 	bool							got_imu_data=false;
 	bool							got_sonar_data=false;
 	bool							got_uwb_data=false;
@@ -169,12 +170,12 @@ std::string motor_service_name = std::string("/")+other_drone_names_[i]+ "/contr
 
 	std::string arv_service_name = std::string("/")+other_drone_names_[i]+ "/mavros/cmd/arming";
 	arm_client.push_back(nh.serviceClient<mavros_msgs::CommandBool>(arv_service_name));
-	std::string land_service_name = std::string("/")+other_drone_names_[i]+ "/mavros/cmd/land";
-	land_client.push_back(nh.serviceClient<mavros_msgs::CommandTOL>(land_service_name));
+	//std::string land_service_name = std::string("/")+other_drone_names_[i]+ "/mavros/cmd/land";
+	//land_client.push_back(nh.serviceClient<mavros_msgs::CommandTOL>(land_service_name));
 	std::string mode_service_name = std::string("/")+other_drone_names_[i]+ "/mavros/set_mode";
 	set_mode_client.push_back(nh.serviceClient<mavros_msgs::SetMode>(mode_service_name));
 	std::string takeoff_service_name = std::string("/")+other_drone_names_[i]+ "/uav_manager/takeoff";
-	takeoff_client.push_back(nh.serviceClient<mavros_msgs::CommandTOL>(takeoff_service_name));
+	takeoff_client.push_back(nh.serviceClient<std_srvs::Trigger>(takeoff_service_name));
 	}
 	//subscribe uwb topic  
 	std::string uwb_topic_name=std::string("/")+"gtec"+std::string("/")+"toa"+std::string("/")+"ranging";
@@ -262,7 +263,7 @@ void uwb_start::activate(void)
 			r3=sqrt((pow(R3,2))-(pow(drones_final_locate["uav1"].z,2)));
 			R4=anchor["uav3"].tag["uav2"];
 			r4=sqrt((pow(R4,2))-(pow(drones_final_locate["uav2"].z,2)));
-			uwb_start::takeoff(2,1);
+			uwb_start::takeoff(2,1.5);
 			while(!other_drones_diagnostics["uav3"]){}
 			n=anchor["uav2"].tag["uav1"]-R2;
 			//locate uav2 from above
@@ -300,14 +301,14 @@ void uwb_start::takeoff(int client_id, float height)
 //set motors
 	//ros::Duration(5).sleep();
 	std::cout << __FILE__ << ":" << __LINE__ << "i am at takeoff start "  <<std::endl; 
-	/*motor_request.request.data = 1;
+	motor_request.request.data = 1;
 	motor_client[client_id].call(motor_request);
 	while(!motor_request.response.success)
 	{
 		ros::Duration(.1).sleep();
 		motor_client[client_id].call(motor_request);
-	}*/
-	//std::cout << __FILE__ << ":" << __LINE__ << "motor on"  <<std::endl; 
+	}
+	std::cout << __FILE__ << ":" << __LINE__ << "motor on"  <<std::endl; 
 	//set arm
 	ros::Duration(5).sleep();
 	arm_request.request.value = true;
@@ -334,12 +335,16 @@ void uwb_start::takeoff(int client_id, float height)
 	      ROS_ERROR("Failed SetMode");
 	}
 	//takeoff
-	//ros::Duration(5).sleep();
 	if(arm_request.response.success){
-		srv_takeoff.request.altitude = height;
+		ros::Duration(5).sleep();
+		std::string temp = "/uav1/uav_manager/takeoff";
+		takeoff_client1 = nh.serviceClient<std_srvs::Trigger>(temp);
+
 		takeoff_client[client_id].call(srv_takeoff);
-		while(!srv_takeoff.response.success)
+		std::cout << __FILE__ << ":" << __LINE__ << "i got in if after arming"<<"service responce"<<srv_takeoff.response.success<<std::endl; 
+		for(int i=0;i<100;i++)
 		{
+		//std::cout << __FILE__ << ":" << __LINE__ << "i got in while after arming"  <<std::endl; 
 			ros::Duration(.1).sleep();
 			takeoff_client[client_id].call(srv_takeoff);
 		}
@@ -351,7 +356,6 @@ void uwb_start::takeoff(int client_id, float height)
 		}
 		}
 	  std::cout << __FILE__ << ":" << __LINE__ << "i am at takeoff end "  <<std::endl; 
-	//ros::Duration(5).sleep();
 }
 /*
 void uwb_start::callbackTimerPublishDistToWaypoint(const ros::TimerEvent& te)
