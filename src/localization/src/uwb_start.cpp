@@ -191,7 +191,7 @@ std::string motor_service_name = std::string("/")+other_drone_names_[i]+ "/contr
         
 //---------------------timer------------------
 
-//timer_publish_dist_to_waypoint_ = nh.createTimer(ros::Rate(30), &uwb_start::callbackTimerPublishDistToWaypoint, this);
+timer_publish_dist_to_waypoint_ = nh.createTimer(ros::Rate(30), &uwb_start::callbackTimerPublishDistToWaypoint, this);
 timer_publish_uwb_locate = nh.createTimer(ros::Rate(10), &uwb_start::callbackTimerUwbLocate, this);
 //------------------------service--------------
 
@@ -357,7 +357,7 @@ void uwb_start::takeoff(int client_id, float height)
 		}
 	  std::cout << __FILE__ << ":" << __LINE__ << "i am at takeoff end "  <<std::endl; 
 }
-/*
+
 void uwb_start::callbackTimerPublishDistToWaypoint(const ros::TimerEvent& te)
 {
 	std::map<std::string, mrs_msgs::ReferenceStamped>::iterator itr=new_waypoints.begin();
@@ -402,7 +402,7 @@ new_waypoints["uav4"].reference.position.y = new_waypoints["uav4"].reference.pos
 new_waypoints["uav5"].reference.position.y = new_waypoints["uav5"].reference.position.y+15;
 new_waypoints["uav6"].reference.position.y = new_waypoints["uav6"].reference.position.y+15;
 
- }*/
+ }
  
 
 void uwb_start::callbackTimerUwbLocate(const ros::TimerEvent& te)
