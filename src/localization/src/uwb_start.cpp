@@ -35,7 +35,7 @@
 #include <map> 
 #include <iterator> 
 #include <std_msgs/String.h> 
-#include <Eigen/Dense>
+#include <eigen3/Eigen/Dense>
 
 namespace localization
 {
@@ -100,7 +100,6 @@ namespace localization
 	std::string						control_manager;
 	std::string						mpc_tracker;
 	std::string						diagnostics;
-	std::string						tracker_diagnostics_in;
 	//nav_msgs::Odometry					odom_gt_;
   	//nav_msgs::Odometry 					odom_uav_;
 	std::string						_frame_id_;
@@ -138,7 +137,6 @@ namespace localization
 	param_loader.loadParam("simulation", _simulation_);
 	param_loader.loadParam("frame_id", _frame_id_);
 	//param_loader.load_param("network/robot_names", other_drone_names_);
-	//param_loader.loadParam("tracker_diagnostics_in",tracker_diagnostics_in);
 	other_drone_names_ = {"uav1", "uav2", "uav3"};
 	//subscrbing and publishing to respective topic 
 	for (unsigned long i = 0; i < other_drone_names_.size(); i++) {
@@ -408,19 +406,27 @@ new_waypoints["uav6"].reference.position.y = new_waypoints["uav6"].reference.pos
 void uwb_start::callbackTimerUwbLocate(const ros::TimerEvent& te)
 {
 	if(path_set==true){
-	ROS_INFO("[uwb_start]: m here in uwblocate");
+	ROS_INFO("[uwb_start]: m here in uwblocate 1");
 	std::map<std::string, struct locate>::iterator anchor_itr; 
 	std::map<std::string, float>::iterator tag_itr; 
-
+	ROS_INFO("[uwb_start]: m here in uwblocate 2");
 	for(anchor_itr = anchor.begin(); anchor_itr != anchor.end(); anchor_itr++){
 	tag_itr = ((anchor_itr->second).tag).begin(); 
 	Eigen::MatrixXd A (2,2);
-	A<< ((drones_final_locate[next(tag_itr, 1)->first].x-drones_final_locate[tag_itr->first].x), (drones_final_locate[next(tag_itr, 1)->first].y-drones_final_locate[tag_itr->first].y), (drones_final_locate[next(tag_itr, 2)->first].x-drones_final_locate[next(tag_itr, 1)->first].x), (drones_final_locate[next(tag_itr, 2)->first].y-drones_final_locate[next(tag_itr, 1)->first].y));
+	ROS_INFO("[uwb_start]: m here in uwblocate 3");
 
+	//here is error in declaration of A
+  	std::cout << __FILE__ << ":" << __LINE__  << "value of 1 is" << (drones_final_locate[next(tag_itr, 1)->first].x-drones_final_locate[tag_itr->first].x) <<"value of 2 is"<<(drones_final_locate[next(tag_itr, 1)->first].y-drones_final_locate[tag_itr->first].y)<<"value of 3 is"<<(drones_final_locate[next(tag_itr, 2)->first].x-drones_final_locate[next(tag_itr, 1)->first].x)<< "value of 4 is"<<(drones_final_locate[next(tag_itr, 2)->first].y-drones_final_locate[next(tag_itr, 1)->first].y) <<std::endl;
+	A<<(drones_final_locate[next(tag_itr, 1)->first].x-drones_final_locate[tag_itr->first].x),(drones_final_locate[next(tag_itr, 1)->first].y-drones_final_locate[tag_itr->first].y),(drones_final_locate[next(tag_itr, 2)->first].x-drones_final_locate[next(tag_itr, 1)->first].x),(drones_final_locate[next(tag_itr, 2)->first].y-drones_final_locate[next(tag_itr, 1)->first].y);
+	std::cout << __FILE__ << ":" << __LINE__  << "matrix A is"<<A<<std::endl;
+	//A<< (, , , );
+	ROS_INFO("[uwb_start]: m here in uwblocate 4");
 	Eigen::MatrixXd B(2,1);
-	B<< ((pow(tag_itr->second,2))-(pow((drones_sonar_locate[anchor_itr->first]-drones_final_locate[tag_itr->first].z),2))-(pow(drones_final_locate[tag_itr->first].x,2))-(pow(drones_final_locate[tag_itr->first].y,2)))-((pow((next(tag_itr, 1))->second,2))-(pow((drones_sonar_locate[anchor_itr->first]-drones_final_locate[(next(tag_itr, 1))->first].z),2))-(pow(drones_final_locate[(next(tag_itr, 1))->first].x,2))-(pow(drones_final_locate[(next(tag_itr, 1))->first].y,2))),
-	((pow(next(tag_itr, 1)->second,2))-(pow((drones_sonar_locate[anchor_itr->first]-drones_final_locate[next(tag_itr, 1)->first].z),2))-(pow(drones_final_locate[next(tag_itr, 1)->first].x,2))-(pow(drones_final_locate[next(tag_itr, 1)->first].y,2)))-((pow((next(tag_itr, 2))->second,2))-(pow((drones_sonar_locate[anchor_itr->first]-drones_final_locate[(next(tag_itr, 2))->first].z),2))-(pow(drones_final_locate[(next(tag_itr, 2))->first].x,2))-(pow(drones_final_locate[(next(tag_itr, 2))->first].y,2)));
+	B<<(pow(tag_itr->second,2))-(pow((drones_sonar_locate[anchor_itr->first]-drones_final_locate[tag_itr->first].z),2))-(pow(drones_final_locate[tag_itr->first].x,2))-(pow(drones_final_locate[tag_itr->first].y,2)))-((pow((next(tag_itr, 1))->second,2))-(pow((drones_sonar_locate[anchor_itr->first]-drones_final_locate[(next(tag_itr, 1))->first].z),2))-(pow(drones_final_locate[(next(tag_itr, 1))->first].x,2))-(pow(drones_final_locate[(next(tag_itr, 1))->first].y,2))),((pow(next(tag_itr, 1)->second,2))-(pow((drones_sonar_locate[anchor_itr->first]-drones_final_locate[next(tag_itr, 1)->first].z),2))-(pow(drones_final_locate[next(tag_itr, 1)->first].x,2))-(pow(drones_final_locate[next(tag_itr, 1)->first].y,2)))-((pow((next(tag_itr, 2))->second,2))-(pow((drones_sonar_locate[anchor_itr->first]-drones_final_locate[(next(tag_itr, 2))->first].z),2))-(pow(drones_final_locate[(next(tag_itr, 2))->first].x,2))-(pow(drones_final_locate[(next(tag_itr, 2))->first].y,2));
+	std::cout << __FILE__ << ":" << __LINE__  << "matrix B is"<<B<<std::endl;
 
+	//B<< (,);
+	ROS_INFO("[uwb_start]: m here in uwblocate 5");
 	geometry_msgs::Point X;
 
 	X.x = (A.inverse()*B)(0);

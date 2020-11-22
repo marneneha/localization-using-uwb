@@ -3,6 +3,6 @@ prefix=/home/neha/neha_ws2/install
 Name: localization
 Description: Description of localization
 Version: 0.0.0
-Cflags: 
+Cflags: -I/usr/include/eigen3
 Libs: -L${prefix}/lib -luwb_start
 Requires: roscpp mrs_lib mrs_msgs std_msgs geometry_msgs nav_msgs message_runtime gtec_msgs
