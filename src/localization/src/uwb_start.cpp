@@ -108,6 +108,7 @@ namespace localization
 	ros::Timer 						timer_publish_dist_to_waypoint_;
 	ros::Timer 						timer_publish_uwb_locate;
 	std::map<std::string, mrs_msgs::ReferenceStamped>	new_waypoints;
+	std::map<std::string, mrs_msgs::ReferenceStamped>::iterator	itr;
 	bool 							path_set=false;
 	bool 							goal_set=false;
 	mavros_msgs::CommandBool 				arm_request;
@@ -149,7 +150,7 @@ namespace localization
 	sub_uav_diag.push_back(nh.subscribe <mrs_msgs::ControlManagerDiagnostics> (diag_topic_name, 10, boost::bind(&uwb_start::callbackTrackerDiag, this, _1, diag_topic_name)));
 	ROS_INFO("[uwb_start]: subscribing to %s", diag_topic_name.c_str());				
 	//advertise reference topic
-	std::string neha_uav = "/"+other_drone_names_[i]+"/control_manager/position_cmd";
+	std::string neha_uav = "/"+other_drone_names_[i]+"/control_manager/referance";
 	pub_reference_.push_back(nh.advertise<mrs_msgs::ReferenceStamped>(neha_uav,1));
 	ROS_INFO("[uwb_start]:publishing to %s",neha_uav.c_str());
 	//subscribe sonar topic
@@ -358,12 +359,15 @@ void uwb_start::takeoff(int client_id, float height)
 
 void uwb_start::callbackTimerPublishDistToWaypoint(const ros::TimerEvent& te)
 {
-	std::map<std::string, mrs_msgs::ReferenceStamped>::iterator itr=new_waypoints.begin();
-
-	if(goal_set&&itr!=new_waypoints.end()){
-	int l = *((itr->first).c_str()+3);
-	pub_reference_[l].publish(itr->second);
-	itr++;
+	if(goal_set){
+	itr=new_waypoints.begin();
+		while(itr!=new_waypoints.end()){
+		int l = *((itr->first).c_str()+4);
+		l--;
+		std::cout<<"l is"<<l<<"publishing value is"<<itr->second<<std::endl;
+		pub_reference_[l].publish(itr->second);
+		itr++;
+		}
 	}
 	else
 	{
