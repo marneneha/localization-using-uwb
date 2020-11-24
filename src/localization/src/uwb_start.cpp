@@ -359,14 +359,19 @@ void uwb_start::takeoff(int client_id, float height)
 
 void uwb_start::callbackTimerPublishDistToWaypoint(const ros::TimerEvent& te)
 {
+	//ROS_INFO("i got in timer for publishing");
 	if(goal_set){
+		ROS_ERROR("i got in if condition for publishing");
 	itr=new_waypoints.begin();
-		while(itr!=new_waypoints.end()){
-		int l = *((itr->first).c_str()+4);
-		l--;
-		std::cout<<"l is"<<l<<"publishing value is"<<itr->second<<std::endl;
-		pub_reference_[l].publish(itr->second);
-		itr++;
+		std::cout<<"itr 1st is"<<itr->first<<"itr 2nd is"<<itr->second<<std::endl;
+		for(int i=1;i<100;i++){
+			while(itr!=new_waypoints.end()){
+			int l = *((itr->first).c_str()+3);
+			l = l-49;
+			std::cout<<"l is"<<l<<"publishing value is"<<itr->second<<std::endl;
+			pub_reference_[l].publish(itr->second);
+			itr++;
+			}
 		}
 	}
 	else
@@ -410,28 +415,28 @@ new_waypoints["uav6"].reference.position.y = new_waypoints["uav6"].reference.pos
 void uwb_start::callbackTimerUwbLocate(const ros::TimerEvent& te)
 {
 	if(path_set==true){
-	ROS_INFO("[uwb_start]: m here in uwblocate 1");
+	//ROS_INFO("[uwb_start]: m here in uwblocate 1");
 	std::map<std::string, struct locate>::iterator anchor_itr; 
 	std::map<std::string, float>::iterator tag_itr; 
-	ROS_INFO("[uwb_start]: m here in uwblocate 2");
+	//ROS_INFO("[uwb_start]: m here in uwblocate 2");
 	for(anchor_itr = anchor.begin(); anchor_itr != anchor.end(); anchor_itr++){
 	tag_itr = ((anchor_itr->second).tag).begin(); 
 	Eigen::MatrixXd A (2,2);
-	ROS_INFO("[uwb_start]: m here in uwblocate 3");
+	//ROS_INFO("[uwb_start]: m here in uwblocate 3");
 
 	//here is error in declaration of A
   	std::cout << __FILE__ << ":" << __LINE__  << "value of 1 is" << (drones_final_locate[next(tag_itr, 1)->first].x-drones_final_locate[tag_itr->first].x) <<"value of 2 is"<<(drones_final_locate[next(tag_itr, 1)->first].y-drones_final_locate[tag_itr->first].y)<<"value of 3 is"<<(drones_final_locate[next(tag_itr, 2)->first].x-drones_final_locate[next(tag_itr, 1)->first].x)<< "value of 4 is"<<(drones_final_locate[next(tag_itr, 2)->first].y-drones_final_locate[next(tag_itr, 1)->first].y) <<std::endl;
 	A<<(drones_final_locate[next(tag_itr, 1)->first].x-drones_final_locate[tag_itr->first].x),(drones_final_locate[next(tag_itr, 1)->first].y-drones_final_locate[tag_itr->first].y),(drones_final_locate[next(tag_itr, 2)->first].x-drones_final_locate[next(tag_itr, 1)->first].x),(drones_final_locate[next(tag_itr, 2)->first].y-drones_final_locate[next(tag_itr, 1)->first].y);
 	std::cout << __FILE__ << ":" << __LINE__  << "matrix A is"<<A<<std::endl;
 	//A<< (, , , );
-	ROS_INFO("[uwb_start]: m here in uwblocate 4");
+	//ROS_INFO("[uwb_start]: m here in uwblocate 4");
 	Eigen::MatrixXd B(2,1);
 	B<< ((pow(tag_itr->second,2))-(pow((drones_sonar_locate[anchor_itr->first]-drones_final_locate[tag_itr->first].z),2))-(pow(drones_final_locate[tag_itr->first].x,2))-(pow(drones_final_locate[tag_itr->first].y,2)))-((pow((next(tag_itr, 1))->second,2))-(pow((drones_sonar_locate[anchor_itr->first]-drones_final_locate[(next(tag_itr, 1))->first].z),2))-(pow(drones_final_locate[(next(tag_itr, 1))->first].x,2))-(pow(drones_final_locate[(next(tag_itr, 1))->first].y,2))),
 	((pow(next(tag_itr, 1)->second,2))-(pow((drones_sonar_locate[anchor_itr->first]-drones_final_locate[next(tag_itr, 1)->first].z),2))-(pow(drones_final_locate[next(tag_itr, 1)->first].x,2))-(pow(drones_final_locate[next(tag_itr, 1)->first].y,2)))-((pow((next(tag_itr, 2))->second,2))-(pow((drones_sonar_locate[anchor_itr->first]-drones_final_locate[(next(tag_itr, 2))->first].z),2))-(pow(drones_final_locate[(next(tag_itr, 2))->first].x,2))-(pow(drones_final_locate[(next(tag_itr, 2))->first].y,2)));
 	std::cout << __FILE__ << ":" << __LINE__  << "matrix B is"<<B<<std::endl;
 
 	//B<< (,);
-	ROS_INFO("[uwb_start]: m here in uwblocate 5");
+	//ROS_INFO("[uwb_start]: m here in uwblocate 5");
 	geometry_msgs::Point X;
 
 	X.x = (A.inverse()*B)(0);
@@ -441,6 +446,7 @@ void uwb_start::callbackTimerUwbLocate(const ros::TimerEvent& te)
 	drones_final_locate[anchor_itr->first] = X;	
 	}
   }
+  	//ROS_INFO("[uwb_start]: i am exiting uwb locate timer");
 }
 
 
