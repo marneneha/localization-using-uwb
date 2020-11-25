@@ -368,8 +368,15 @@ void uwb_start::callbackTimerPublishDistToWaypoint(const ros::TimerEvent& te)
 			while(itr!=new_waypoints.end()){
 			int l = *((itr->first).c_str()+3);
 			l = l-49;
-			std::cout<<"l is"<<l<<"publishing value is"<<itr->second<<std::endl;
-			pub_reference_[l].publish(itr->second);
+			mrs_msgs::ReferenceStamped newwaypoint;
+			newwaypoint.header.frame_id = "uav2/"+ _frame_id_;
+			newwaypoint.header.stamp         = ros::Time::now();
+			newwaypoint.reference.position.x = 0;
+			newwaypoint.reference.position.y = 1;
+			newwaypoint.reference.position.z = 0;
+			newwaypoint.reference.heading    = 0;	
+			std::cout<<"newwaypoint is"<<newwaypoint<<std::endl;
+			pub_reference_[l].publish(newwaypoint);
 			itr++;
 			}
 		}
@@ -414,7 +421,7 @@ new_waypoints["uav6"].reference.position.y = new_waypoints["uav6"].reference.pos
 
 void uwb_start::callbackTimerUwbLocate(const ros::TimerEvent& te)
 {
-	if(path_set==true){
+	if((path_set==true)&&(goal_set!=true)){
 	//ROS_INFO("[uwb_start]: m here in uwblocate 1");
 	std::map<std::string, struct locate>::iterator anchor_itr; 
 	std::map<std::string, float>::iterator tag_itr; 
