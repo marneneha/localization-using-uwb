@@ -191,7 +191,7 @@ std::string motor_service_name = std::string("/")+other_drone_names_[i]+ "/contr
 //---------------------timer------------------
 
 timer_publish_dist_to_waypoint_ = nh.createTimer(ros::Rate(30), &uwb_start::callbackTimerPublishDistToWaypoint, this);
-timer_publish_uwb_locate = nh.createTimer(ros::Rate(10), &uwb_start::callbackTimerUwbLocate, this);
+//timer_publish_uwb_locate = nh.createTimer(ros::Rate(10), &uwb_start::callbackTimerUwbLocate, this);
 //------------------------service--------------
 
 	
@@ -373,7 +373,7 @@ void uwb_start::callbackTimerPublishDistToWaypoint(const ros::TimerEvent& te)
 			newwaypoint.header.stamp         = ros::Time::now();
 			newwaypoint.reference.position.x = 0;
 			newwaypoint.reference.position.y = 1;
-			newwaypoint.reference.position.z = 0;
+			newwaypoint.reference.position.z = 1.5;
 			newwaypoint.reference.heading    = 0;	
 			std::cout<<"newwaypoint is"<<newwaypoint<<std::endl;
 			pub_reference_[l].publish(newwaypoint);
