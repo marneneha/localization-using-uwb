@@ -80,6 +80,7 @@ namespace localization
   	std::vector<ros::ServiceClient>                         motor_client;
   	std::vector<ros::ServiceClient>                         land_client;
   	std::vector<ros::ServiceClient>                         set_mode_client;
+  	std::vector<ros::ServiceClient>                         goto_client;
   	std::vector<ros::ServiceClient>                         takeoff_client;
 	ros::ServiceClient					takeoff_client1;
 
@@ -115,6 +116,7 @@ namespace localization
 	mavros_msgs::SetMode 					srv_setMode;
 	std_srvs::SetBool					motor_request;
 	std_srvs::Trigger					srv_takeoff;
+	mrs_msgs::Vec4						goto_request;
 	bool							got_imu_data=false;
 	bool							got_sonar_data=false;
 	bool							got_uwb_data=false;
@@ -173,6 +175,10 @@ std::string motor_service_name = std::string("/")+other_drone_names_[i]+ "/contr
 	//land_client.push_back(nh.serviceClient<mavros_msgs::CommandTOL>(land_service_name));
 	std::string mode_service_name = std::string("/")+other_drone_names_[i]+ "/mavros/set_mode";
 	set_mode_client.push_back(nh.serviceClient<mavros_msgs::SetMode>(mode_service_name));
+
+	std::string goto_service_name = std::string("/")+other_drone_names_[i]+ "/control_manager/goto";
+	goto_client.push_back(nh.serviceClient<mrs_msgs::Vec4>(goto_service_name));
+
 	std::string takeoff_service_name = std::string("/")+other_drone_names_[i]+ "/uav_manager/takeoff";
 	takeoff_client.push_back(nh.serviceClient<std_srvs::Trigger>(takeoff_service_name));
 	}
@@ -336,9 +342,6 @@ void uwb_start::takeoff(int client_id, float height)
 	//takeoff
 	if(arm_request.response.success){
 		ros::Duration(5).sleep();
-		std::string temp = "/uav1/uav_manager/takeoff";
-		takeoff_client1 = nh.serviceClient<std_srvs::Trigger>(temp);
-
 		takeoff_client[client_id].call(srv_takeoff);
 		std::cout << __FILE__ << ":" << __LINE__ << "i got in if after arming"<<"service responce"<<srv_takeoff.response.success<<std::endl; 
 		for(int i=0;i<100;i++)
@@ -360,31 +363,18 @@ void uwb_start::takeoff(int client_id, float height)
 void uwb_start::callbackTimerPublishDistToWaypoint(const ros::TimerEvent& te)
 {
 	//ROS_INFO("i got in timer for publishing");
+	int l = 1;
 	if(goal_set){
-		ROS_ERROR("i got in if condition for publishing");
-	itr=new_waypoints.begin();
-		std::cout<<"itr 1st is"<<itr->first<<"itr 2nd is"<<itr->second<<std::endl;
-		for(int i=1;i<100;i++){
-			while(itr!=new_waypoints.end()){
-			int l = *((itr->first).c_str()+3);
-			l = l-49;
-			mrs_msgs::ReferenceStamped newwaypoint;
-			newwaypoint.header.frame_id = "uav2/"+ _frame_id_;
-			newwaypoint.header.stamp         = ros::Time::now();
-			newwaypoint.reference.position.x = 0;
-			newwaypoint.reference.position.y = 1;
-			newwaypoint.reference.position.z = 1.5;
-			newwaypoint.reference.heading    = 0;	
-			std::cout<<"newwaypoint is"<<newwaypoint<<std::endl;
-			pub_reference_[l].publish(newwaypoint);
-			itr++;
-			}
-		}
-	}
-	else
+	ROS_ERROR("i got in if condition for publishing");
+	boost::array<double,4> temp = {1.0,2.0,1.5,0.0};
+	goto_request.request.goal = temp;
+	goto_client[l].call(goto_request);
+	while(!goto_request.response.success)
 	{
-	itr=new_waypoints.begin();
+		goto_client[l].call(goto_request);
 	}
+	}
+	
 }
 
 
