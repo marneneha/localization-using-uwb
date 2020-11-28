@@ -108,8 +108,8 @@ namespace localization
 	std::vector<ros::Publisher>				pub_reference_;
 	ros::Timer 						timer_publish_dist_to_waypoint_;
 	ros::Timer 						timer_publish_uwb_locate;
-	std::map<std::string, mrs_msgs::ReferenceStamped>	new_waypoints;
-	std::map<std::string, mrs_msgs::ReferenceStamped>::iterator	itr;
+	std::map<std::string, boost::array<double, 4>>		new_waypoints;
+	std::map<std::string, boost::array<double, 4>>::iterator itr;
 	bool 							path_set=false;
 	bool 							goal_set=false;
 	mavros_msgs::CommandBool 				arm_request;
@@ -242,7 +242,7 @@ void uwb_start::activate(void)
 		  std::cout << __FILE__ << ":" << __LINE__ << "i got uwb distance for second and it is "<<R2<<std::endl; 
 			r2=sqrt((pow(R2,2))-(pow(drones_final_locate["uav2"].z,2)));
 			path_set=true;
-			uwb_start::goal("uav2",0,1,0,0);
+			uwb_start::goal("uav2",1.0,2.0,1.67,0);
 		  std::cout << __FILE__ << ":" << __LINE__ << "goal for uav2 done "  <<std::endl; 
 			while(!other_drones_diagnostics["uav2"]){}
 		  std::cout << __FILE__ << ":" << __LINE__ << "i got uwb distance for third and it is "<<anchor["uav2"].tag["uav1"]<<std::endl; 
@@ -366,12 +366,22 @@ void uwb_start::callbackTimerPublishDistToWaypoint(const ros::TimerEvent& te)
 	int l = 1;
 	if(goal_set){
 	ROS_ERROR("i got in if condition for publishing");
-	boost::array<double,4> temp = {1.0,2.0,1.5,0.0};
-	goto_request.request.goal = temp;
-	goto_client[l].call(goto_request);
-	while(!goto_request.response.success)
-	{
+
+	itr=new_waypoints.begin();
+	while(itr!=new_waypoints.end()){
+		int l = *((itr->first).c_str()+3);
+		l = l-49;
+		std::cout << __FILE__ << ":" << __LINE__ << "l is "<<l<<"waypoint is"<<"x is"<<(itr->second).at(0)<<"y is"<<(itr->second).at(1)<<"z is"<<(itr->second).at(2)<<"yaw is"<<(itr->second).at(3)<<std::endl; 
+
+		goto_request.request.goal = itr->second;
+		//boost::array<double,4> temp = {1.0,2.0,1.5,0.0};
+		//goto_request.request.goal = temp;
 		goto_client[l].call(goto_request);
+		while(!goto_request.response.success)
+		{
+		std::cout << __FILE__ << ":" << __LINE__ << "i got in here "<<std::endl; 
+		goto_client[l].call(goto_request);
+		}
 	}
 	}
 	
@@ -381,23 +391,21 @@ void uwb_start::callbackTimerPublishDistToWaypoint(const ros::TimerEvent& te)
 
 //goto function
 void uwb_start::goal(std::string uav_name, float x, float y, float z, float yaw){
-mrs_msgs::ReferenceStamped new_waypoint;
-	new_waypoint.header.frame_id = uav_name +"/"+ _frame_id_;
-	ROS_INFO("hii neha its me %s",uav_name.c_str());	
-	new_waypoint.header.stamp         = ros::Time::now();
-	new_waypoint.reference.position.x = x;
-	new_waypoint.reference.position.y = y;
-	new_waypoint.reference.position.z = z;
-	new_waypoint.reference.heading    = yaw;
+boost::array<double,4> new_waypoint;
+
+	new_waypoint.at(0) = x;
+	new_waypoint.at(1) = y;
+	new_waypoint.at(2) = z;
+	new_waypoint.at(3)    = yaw;
 	new_waypoints[uav_name]=new_waypoint;
-	ROS_INFO("[uwb_start]: Flying to waypoint : x: %2.2f y: %2.2f z: %2.2f yaw: %2.2f uav name: %s",new_waypoint.reference.position.x, new_waypoint.reference.position.y, new_waypoint.reference.position.z, new_waypoint.reference.heading, uav_name.c_str() );
+	ROS_INFO("[uwb_start]: Flying to waypoint : x: %2.2f y: %2.2f z: %2.2f yaw: %2.2f uav name: %s",x, y, z, yaw, uav_name.c_str() );
 goal_set =true;
 }
 //localization algo 
 //clear
 //or mrs_msgs::RtkGps::ConstPtr&
  
- 
+/* 
 void uwb_start::movement(){
 new_waypoints["uav1"].reference.position.y = new_waypoints["uav1"].reference.position.y+15;
 new_waypoints["uav2"].reference.position.y = new_waypoints["uav2"].reference.position.y+15;
@@ -407,7 +415,7 @@ new_waypoints["uav5"].reference.position.y = new_waypoints["uav5"].reference.pos
 new_waypoints["uav6"].reference.position.y = new_waypoints["uav6"].reference.position.y+15;
 
  }
- 
+ */
 
 void uwb_start::callbackTimerUwbLocate(const ros::TimerEvent& te)
 {
