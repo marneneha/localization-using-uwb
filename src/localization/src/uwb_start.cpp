@@ -27,6 +27,7 @@
 #include <mrs_msgs/Float64Stamped.h>
 #include <mrs_msgs/ReferenceStamped.h>
 #include <mrs_msgs/RtkGps.h>
+#include <mrs_msgs/UavState.h>
 #include <mrs_lib/param_loader.h>
 #include <pluginlib/class_list_macros.h>
 #include <std_srvs/Trigger.h>
@@ -62,7 +63,7 @@ namespace localization
 	void callbackOtheruavcoordinates(const mrs_msgs::RtkGpsConstPtr msg, const std::string& topic);
 	void callbackuwbranging(const gtec_msgs::RangingConstPtr msg, const std::string& topic);
 	void callbacksonar(const sensor_msgs::RangeConstPtr msg, const std::string& topic);
-	void callbackimudata(const sensor_msgs::ImuConstPtr msg, const std::string& topic);
+	void callbackimudata(const mrs_msgs::UavStateConstPtr msg, const std::string& topic);
 	double dist3d(const double ax, const double ay, const double az, const double bx, const double by, const double bz);
 	int neighbourtimer(void);
 	void callbackTimerPublishDistToWaypoint(const ros::TimerEvent& te);
@@ -161,8 +162,8 @@ namespace localization
  	ROS_INFO("[uwb_start]: subscribing to %s", sonar_topic_name.c_str());
 
 	//suscribe imu topic  
-	std::string imu_topic_name=std::string("/")+other_drone_names_[i]+std::string("/")+"mavros"+std::string("/")+"imu"+std::string("/")+"data_raw"/*or data*/;
-	sub_uav_imu.push_back(nh.subscribe <sensor_msgs::Imu> (imu_topic_name, 1, boost::bind(&uwb_start::callbackimudata, this, _1, imu_topic_name)));
+	std::string imu_topic_name=std::string("/")+other_drone_names_[i]+std::string("/")+"odometry"+std::string("/")+"uav_state";
+	sub_uav_imu.push_back(nh.subscribe <mrs_msgs::UavState> (imu_topic_name, 1, boost::bind(&uwb_start::callbackimudata, this, _1, imu_topic_name)));
  	ROS_INFO("[uwb_start]: subscribing to %s", imu_topic_name.c_str());
 
 	//service call
@@ -236,14 +237,14 @@ void uwb_start::activate(void)
 			std::cout << __FILE__ << ":" << __LINE__ << "z reading of final locate is "<<drones_final_locate["uav1"].z<<"reading from sonar is"<<drones_sonar_locate["uav1"]<<"after waiting "<<temp_sonar<<std::endl;
 			r1=sqrt((pow(R1,2))-(pow(drones_sonar_locate["uav1"],2)));
 		  std::cout << __FILE__ << ":" << __LINE__ << "i got uwb distance for first circle radius is"<<r1<<std::endl; 
-			/*uwb_start::takeoff(1,1.5);
+			uwb_start::takeoff(1,1.5);
 		  std::cout << __FILE__ << ":" << __LINE__ << "takeoff for uav2 complete sonar data" <<drones_sonar_locate["uav2"]<<"imu data is"<<drones_imu_locate["uav2"] <<std::endl; 
 			R2=anchor["uav2"].tag["uav1"];
 		  std::cout << __FILE__ << ":" << __LINE__ << "i got uwb distance for second and it is "<<R2<<std::endl; 
 			r2=sqrt((pow(R2,2))-(pow(drones_final_locate["uav2"].z,2)));
 			path_set=true;
 			uwb_start::goal("uav2",1.0,2.0,1.67,0);
-		  std::cout << __FILE__ << ":" << __LINE__ << "goal for uav2 done "  <<std::endl; */
+		  std::cout << __FILE__ << ":" << __LINE__ << "goal for uav2 done "  <<std::endl; 
 			while(!other_drones_diagnostics["uav2"]){}
 		  std::cout << __FILE__ << ":" << __LINE__ << "i got uwb distance for third and it is "<<anchor["uav2"].tag["uav1"]<<std::endl; 
 			n=anchor["uav2"].tag["uav1"]-R2;
@@ -357,6 +358,7 @@ void uwb_start::takeoff(int client_id, float height)
 			ROS_ERROR("Failed Takeoff");
 		}
 		}
+	while(!takeoff_client[client_id].call(srv_takeoff)){}
 	  std::cout << __FILE__ << ":" << __LINE__ << "i am at takeoff end "  <<std::endl; 
 }
 
@@ -396,7 +398,7 @@ boost::array<double,4> new_waypoint;
 	new_waypoint.at(0) = x;
 	new_waypoint.at(1) = y;
 	new_waypoint.at(2) = z;
-	new_waypoint.at(3) = yaw;
+	new_waypoint.at(3)    = yaw;
 	new_waypoints[uav_name]=new_waypoint;
 	ROS_INFO("[uwb_start]: Flying to waypoint : x: %2.2f y: %2.2f z: %2.2f yaw: %2.2f uav name: %s",x, y, z, yaw, uav_name.c_str() );
 goal_set =true;
@@ -476,7 +478,6 @@ void uwb_start::callbacksonar(const sensor_msgs::RangeConstPtr msg, const std::s
 	  	got_sonar_data=true;
 
 	}	
-	  	got_sonar_data=true;
 
   drones_sonar_locate[uav_name] = msg->range;
   drones_final_locate[uav_name].z=msg->range;
@@ -487,45 +488,42 @@ void uwb_start::callbacksonar(const sensor_msgs::RangeConstPtr msg, const std::s
 //callback function for imu sensor
 // see this algo 
 int c;
-double x_0 =0,y_0 =0,z_0 =0;
+double x_0 =0,y_0 =0,z_0 =0, t=0;
 int imu_count[3];
-void uwb_start::callbackimudata(const sensor_msgs::ImuConstPtr msg, const std::string& topic){
-  double t;
-  std::cout << __FILE__ << ":" << __LINE__  << "[uwb_start]: m here in callbackimudata x_0 is " << x_0 <<" y_0 is "<<y_0<<"z_0 is "<<z_0<<std::endl; 
+void uwb_start::callbackimudata(const mrs_msgs::UavStateConstPtr msg, const std::string& topic){
+  //std::cout << __FILE__ << ":" << __LINE__  << "[uwb_start]: m here in callbackimudata x_0 is " << x_0 <<" y_0 is "<<y_0<<"z_0 is "<<z_0<<std::endl; 
   int uav_no = *(topic.c_str()+4); 
   uav_no = uav_no-48;
   std::string uav_name="uav"+std::to_string(uav_no);
-  if(uav_name=="uav1"){
-	  uav_no--;
-	  imu_count[uav_no] = 1;
-	  		
-	  if(imu_count[0]&&imu_count[1]&&imu_count[2])	
-	  	{
-		  	got_imu_data=true;
-		}
-		  	got_imu_data=true;
+  uav_no--;
+  imu_count[uav_no] = 1;
+  		
+  if(imu_count[0]&&imu_count[1]&&imu_count[2])	
+  	{
+	  	got_imu_data=true;
+	}
 
-	  double dt = (msg->header.stamp.sec + (msg->header.stamp.nsec/pow(10,9))) - t ;
-	  t = msg->header.stamp.sec + (msg->header.stamp.nsec/pow(10,9));
-	  std::cout << __FILE__ << ":" << __LINE__  << "time is " << t <<"time difference is "<<dt<<std::endl;
-		if(c>0 && dt<1)  
-		{ double x = x_0 + 0.5*pow(dt,2)*(msg->linear_acceleration.x);
-		  double y = y_0 + 0.5*pow(dt,2)*(msg->linear_acceleration.y);
-		  double z = z_0 + 0.5*pow(dt,2)*(msg->linear_acceleration.z-9.7);
-		  std::cout << __FILE__ << ":" << __LINE__  <<"acceleration in x direction is "<<msg->linear_acceleration.x<<"acceleration in y direction is "<<msg->linear_acceleration.y<<"acceleration in z direction is "<<msg->linear_acceleration.z<< "difference in x is " << 0.5*pow(dt,2)*(msg->linear_acceleration.x) <<"difference in y is "<<0.5*pow(dt,2)*(msg->linear_acceleration.y)<<"difference in z is "<<0.5*pow(dt,2)*(msg->linear_acceleration.z-9.7)<<std::endl;
-		  x_0 = x;
-		  y_0 = y;
-		  z_0 = z;
-		  geometry_msgs::Point X;
-		  X.x=x;
-		  X.y=y;
-		  X.z=z;
-		  drones_imu_locate[uav_name]=X;
-		  drones_final_locate[uav_name]=X;
-		  std::cout << __FILE__ << ":" << __LINE__  << "callback imu data uav name is " << uav_name <<"and data is "<<X<<std::endl; 
-		}
-	  c++;
-  }
+
+  double dt = (msg->header.stamp.sec + (msg->header.stamp.nsec/pow(10,9))) - t ;
+  t = msg->header.stamp.sec + (msg->header.stamp.nsec/pow(10,9));
+  //std::cout << __FILE__ << ":" << __LINE__  << "time is " << t <<"time difference is "<<dt<<std::endl;
+	if(c>0 && dt<1)  
+	{ double x = x_0 + dt*msg->velocity.linear.x+0.5*pow(dt,2)*(msg->acceleration.linear.x);
+	  double y = y_0 + dt*msg->velocity.linear.y+0.5*pow(dt,2)*(msg->acceleration.linear.y);
+	  double z = z_0 + dt*msg->velocity.linear.z+0.5*pow(dt,2)*(msg->acceleration.linear.z);
+          //std::cout << __FILE__ << ":" << __LINE__  << "difference in x is " << dt*msg->velocity.linear.x+0.5*pow(dt,2)*(msg->acceleration.linear.x) <<"difference in y is "<<dt*msg->velocity.linear.y+0.5*pow(dt,2)*(msg->acceleration.linear.y)<<"difference in z is "<<dt*msg->velocity.linear.z+0.5*pow(dt,2)*(msg->acceleration.linear.z)<<std::endl;
+	  x_0 = x;
+	  y_0 = y;
+	  z_0 = z;
+	  geometry_msgs::Point X;
+	  X.x=x;
+	  X.y=y;
+	  X.z=z;
+	  drones_imu_locate[uav_name]=X;
+	  drones_final_locate[uav_name]=X;
+	  //std::cout << __FILE__ << ":" << __LINE__  << "callback imu data uav name is " << uav_name <<"and data is "<<X<<std::endl; 
+	}
+c++;
 }
 int uwb_count[3];
 //callback function for uwb sensor
@@ -541,7 +539,6 @@ void uwb_start::callbackuwbranging(const gtec_msgs::RangingConstPtr msg, const s
 	  	got_uwb_data=true;
 		//std::cout << __FILE__ << ":" << __LINE__  << " got uwb data changed "<<std::endl;
 	}
-	  	got_uwb_data=true;
   if(msg->range>2000)
 	{
   	anchor[uav_name].tag[msg->tagId] = msg->range/1000.0000;
