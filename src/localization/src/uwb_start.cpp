@@ -121,6 +121,7 @@ namespace localization
 	bool							got_imu_data=false;
 	bool							got_sonar_data=false;
 	bool							got_uwb_data=false;
+	bool							got_tracker_responce=false;
   };
 }
 
@@ -226,6 +227,7 @@ void uwb_start::activate(void)
 		  std::cout << __FILE__ << ":" << __LINE__ << "activate function reached "  <<std::endl; 
 		//ros::Duration(5).sleep();
 			uwb_start::takeoff(0);
+		  std::cout << __FILE__ << ":" << __LINE__ << "goal reach of uav2 is "<<other_drones_diagnostics["uav2"]<<std::endl; 
 		  std::cout << __FILE__ << ":" << __LINE__ << "takeoff for uav1 complete sonar data" <<drones_sonar_locate["uav1"]<<"imu data is"<<drones_imu_locate["uav1"] <<std::endl; 
 			//while(!anchor["uav2"].tag["uav1"]){
 			//std::cout << __FILE__ << ":" << __LINE__ << "anchor[uav2].tag[uav1] is "<<anchor["uav2"].tag["uav1"]<<std::endl; 
@@ -245,17 +247,26 @@ void uwb_start::activate(void)
 			//pblm with R2 should be 9.155 it is 8.83966
 			path_set=true;
 			uwb_start::goal("uav2",4.0,17.45,1.75,0);
-			while(other_drones_diagnostics["uav2"]){}
+		  std::cout << __FILE__ << ":" << __LINE__ << "goal reach of uav2 is "<<other_drones_diagnostics["uav2"]<<std::endl; 
+			ros::Duration(0.5).sleep();
+			while(other_drones_diagnostics["uav2"]){
+		  //std::cout << __FILE__ << ":" << __LINE__ << "i got in while "  <<std::endl; 			
+			}
 		  std::cout << __FILE__ << ":" << __LINE__ << "goal for uav2 done "  <<std::endl; 
 			R2=anchor["uav2"].tag["uav1"];
 		  std::cout << __FILE__ << ":" << __LINE__ << "i got uwb distance for third and it is "<<R2<<std::endl; 
 			y2=(pow(R1,2)-pow(R2,2)-pow(4,2))/2*4;
+			std::cout << __FILE__ << ":" << __LINE__ <<"y here is "<<y2<<"R1 is "<<R1<<"R2 is "<<R2<<std::endl; 
 			uwb_start::goal("uav2",4.3,17.45,1.75,0);
-			while(other_drones_diagnostics["uav2"]){}
+			ros::Duration(0.5).sleep();
+			while(other_drones_diagnostics["uav2"]){
+		  //std::cout << __FILE__ << ":" << __LINE__ << "i got in while 2 "  <<std::endl; 			
+			}
 			R3=anchor["uav2"].tag["uav1"];
 			n=R3-R2;
 			if(n>0)
 			{
+		  std::cout << __FILE__ << ":" << __LINE__ << "it is in right if condition "<<std::endl; 			
 			x2=pow(R2,2)-pow(y2,2)+0.3;
 			}
 			if(n<0)
@@ -574,11 +585,12 @@ void uwb_start::callbackOdomUav(const nav_msgs::OdometryConstPtr& msg){
 */
 void uwb_start::callbackTrackerDiag(const mrs_msgs::ControlManagerDiagnosticsConstPtr msg, const std::string& topic){
   ROS_INFO_ONCE("m here in callbackTrackerDiag");
+  got_tracker_responce = true;
   int uav_no = *(topic.c_str()+4); 
   uav_no = uav_no-48;
   std::string uav_name="uav"+std::to_string(uav_no);
 
-  other_drones_diagnostics[uav_name] = !(msg->tracker_status.have_goal);  
+  other_drones_diagnostics[uav_name] = msg->tracker_status.have_goal;  
   if (!msg->tracker_status.have_goal){
   //std::cout << __FILE__ << ":" << __LINE__ << uav_name << "waypoint reached "  <<std::endl; 
   //uwb_start::activate();
