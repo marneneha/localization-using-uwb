@@ -68,7 +68,7 @@ namespace localization
 	int neighbourtimer(void);
 	void callbackTimerPublishDistToWaypoint(const ros::TimerEvent& te);
 	void callbackTimerUwbLocate(const ros::TimerEvent& te);
-	void takeoff(int client_id, float height);
+	void takeoff(int client_id);
 	void movement(void);
 	//void uwblocate();
 	//vector for subcription 
@@ -225,38 +225,42 @@ void uwb_start::activate(void)
 		float R1,r1,R2,r2,R3,r3,R4,r4,x2,y2,x3,y3,a,b,c,a1,b1,c1;
 		  std::cout << __FILE__ << ":" << __LINE__ << "activate function reached "  <<std::endl; 
 		//ros::Duration(5).sleep();
-			uwb_start::takeoff(0,2);
+			uwb_start::takeoff(0);
 		  std::cout << __FILE__ << ":" << __LINE__ << "takeoff for uav1 complete sonar data" <<drones_sonar_locate["uav1"]<<"imu data is"<<drones_imu_locate["uav1"] <<std::endl; 
 			//while(!anchor["uav2"].tag["uav1"]){
 			//std::cout << __FILE__ << ":" << __LINE__ << "anchor[uav2].tag[uav1] is "<<anchor["uav2"].tag["uav1"]<<std::endl; 
 			//}
-			R1=anchor["uav2"].tag["uav1"];
-		  std::cout << __FILE__ << ":" << __LINE__ << "i got uwb distance for first and it is "<<R1<<std::endl; 
+			//R1=anchor["uav2"].tag["uav1"];
+		  	//std::cout << __FILE__ << ":" << __LINE__ << "i got uwb distance for first and it is "<<R1<<std::endl; 
 			std::cout << __FILE__ << ":" << __LINE__ << "z reading of final locate is "<<drones_final_locate["uav1"].z<<"reading from sonar is"<<drones_sonar_locate["uav1"]<<std::endl;
 			//auto temp_sonar = ros::topic::waitForMessage<sensor_msgs::Range>("/uav1/sensor/sonar_front");
 			std::cout << __FILE__ << ":" << __LINE__ << "z reading of final locate is "<<drones_final_locate["uav1"].z<<"reading from sonar is"<<drones_sonar_locate["uav1"]<<"after waiting "<<std::endl;
-			r1=sqrt((pow(R1,2))-(pow(drones_sonar_locate["uav1"],2)));
-		  std::cout << __FILE__ << ":" << __LINE__ << "i got uwb distance for first circle radius is"<<r1<<std::endl; 
-			uwb_start::takeoff(1,1.5);
+			//r2=sqrt((pow(R2,2))-(pow((drones_sonar_locate["uav2"]-drones_sonar_locate["uav2"]),2)));
+			//r1=sqrt((pow(R1,2))-(pow(drones_sonar_locate["uav1"],2)));
+		  //std::cout << __FILE__ << ":" << __LINE__ << "i got uwb distance for first circle radius is"<<r1<<std::endl; 
+			uwb_start::takeoff(1);
 		  std::cout << __FILE__ << ":" << __LINE__ << "takeoff for uav2 complete sonar data" <<drones_sonar_locate["uav2"]<<"imu data is"<<drones_imu_locate["uav2"] <<std::endl; 
-			R2=anchor["uav2"].tag["uav1"];
-		  std::cout << __FILE__ << ":" << __LINE__ << "i got uwb distance for second and it is "<<R2<<std::endl; 
-			r2=sqrt((pow(R2,2))-(pow(drones_final_locate["uav2"].z,2)));
+			R1=anchor["uav2"].tag["uav1"];
+		  std::cout << __FILE__ << ":" << __LINE__ << "i got uwb distance for second and it is "<<R1<<std::endl; 
+			//pblm with R2 should be 9.155 it is 8.83966
 			path_set=true;
-			uwb_start::goal("uav2",5.0,23.45,1.67,0);
+			uwb_start::goal("uav2",4.0,17.45,1.75,0);
+			while(other_drones_diagnostics["uav2"]){}
 		  std::cout << __FILE__ << ":" << __LINE__ << "goal for uav2 done "  <<std::endl; 
-			//while(!other_drones_diagnostics["uav2"]){}
-		  std::cout << __FILE__ << ":" << __LINE__ << "i got uwb distance for third and it is "<<anchor["uav2"].tag["uav1"]<<std::endl; 
-			n=anchor["uav2"].tag["uav1"]-R2;
+			R2=anchor["uav2"].tag["uav1"];
+		  std::cout << __FILE__ << ":" << __LINE__ << "i got uwb distance for third and it is "<<R2<<std::endl; 
+			y2=(pow(R1,2)-pow(R2,2)-pow(4,2))/2*4;
+			uwb_start::goal("uav2",4.3,17.45,1.75,0);
+			while(other_drones_diagnostics["uav2"]){}
+			R3=anchor["uav2"].tag["uav1"];
+			n=R3-R2;
 			if(n>0)
 			{
-			x2=(pow(r2,2)-pow(r1,2)+25)/10;
-			y2=sqrt(pow(r2,2)-pow(x,2))+1;
+			x2=pow(R2,2)-pow(y2,2)+0.3;
 			}
 			if(n<0)
 			{
-			x2=(pow(r2,2)-pow(r1,2)+25)/10;
-			y2=-sqrt(pow(r2,2)-pow(x,2))+1;
+			x2=-(pow(R2,2)-pow(y2,2))+0.3;
 			}
 			geometry_msgs::Point X;
 			X.x = x2;
@@ -270,8 +274,9 @@ void uwb_start::activate(void)
 			r3=sqrt((pow(R3,2))-(pow(drones_sonar_locate["uav1"],2)));
 			R4=anchor["uav3"].tag["uav2"];
 			r4=sqrt((pow(R4,2))-(pow(drones_sonar_locate["uav2"],2)));
+			//pblm with R3 exp 9.497 is 9.212 R4 exp 9.56 is 8.28
 		  std::cout << __FILE__ << ":" << __LINE__ << "R3 is"<<R3<< "r3 is"<<r3<< "R4 is"<<R4<< "r4 is"<<r4<<std::endl; 
-			uwb_start::takeoff(2,1.5);
+			uwb_start::takeoff(2);
 			//while(!other_drones_diagnostics["uav3"]){}
 			n=anchor["uav2"].tag["uav1"]-R2;
 			//locate uav2 from above
@@ -298,14 +303,14 @@ void uwb_start::activate(void)
 		  std::cout << __FILE__ << ":" << __LINE__ << "location of uav3 w.r.t. uav1 is"<<X<<std::endl; 
 			drones_uwb_locate["uav3"] = X;
 			drones_final_locate["uav3"] = X;
-			movement();
+			//movement();
 	}
 
   }
 	
 }
 
-void uwb_start::takeoff(int client_id, float height)
+void uwb_start::takeoff(int client_id)
 {
 //set motors
 	//ros::Duration(5).sleep();
@@ -482,8 +487,8 @@ void uwb_start::callbacksonar(const sensor_msgs::RangeConstPtr msg, const std::s
 
 	}	
 
-  drones_sonar_locate[uav_name] = msg->range;
-  drones_final_locate[uav_name].z=msg->range;
+  drones_sonar_locate[uav_name] = msg->range+0.08;
+  drones_final_locate[uav_name].z=msg->range+0.08;
   //if(uav_name == "uav1")
   //std::cout << __FILE__ << ":" << __LINE__  << "callback sonar data uav name is " << uav_name <<"and range is "<<msg->range<<"data seen as sonar is"<<drones_sonar_locate["uav1"]<<"data seen as final locate is"<<drones_final_locate["uav1"].z<<std::endl; 
 }
@@ -573,10 +578,10 @@ void uwb_start::callbackTrackerDiag(const mrs_msgs::ControlManagerDiagnosticsCon
   uav_no = uav_no-48;
   std::string uav_name="uav"+std::to_string(uav_no);
 
-  other_drones_diagnostics[uav_name] = msg->tracker_status.have_goal;  
+  other_drones_diagnostics[uav_name] = !(msg->tracker_status.have_goal);  
   if (!msg->tracker_status.have_goal){
   //std::cout << __FILE__ << ":" << __LINE__ << uav_name << "waypoint reached "  <<std::endl; 
-    //uwb_start::activate();
+  //uwb_start::activate();
   }
 }
 
