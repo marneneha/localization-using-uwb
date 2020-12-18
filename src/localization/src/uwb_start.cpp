@@ -246,22 +246,24 @@ void uwb_start::activate(void)
 		  std::cout << __FILE__ << ":" << __LINE__ << "i got uwb distance for second and it is "<<R1<<std::endl; 
 			//pblm with R2 should be 9.155 it is 8.83966
 			path_set=true;
-			uwb_start::goal("uav2",4.0,17.45,1.75,0);
+			uwb_start::goal("uav2",4.0,25.45,1.75,0);
 		  std::cout << __FILE__ << ":" << __LINE__ << "goal reach of uav2 is "<<other_drones_diagnostics["uav2"]<<std::endl; 
 			ros::Duration(0.5).sleep();
 			while(other_drones_diagnostics["uav2"]){
 		  //std::cout << __FILE__ << ":" << __LINE__ << "i got in while "  <<std::endl; 			
 			}
 		  std::cout << __FILE__ << ":" << __LINE__ << "goal for uav2 done "  <<std::endl; 
+			ros::Duration(5).sleep();
 			R2=anchor["uav2"].tag["uav1"];
 		  std::cout << __FILE__ << ":" << __LINE__ << "i got uwb distance for third and it is "<<R2<<std::endl; 
-			y2=(pow(R1,2)-pow(R2,2)-pow(4,2))/2*4;
+			y2=(pow(R2,2)+pow(4,2)-pow(R1,2))/8;
 			std::cout << __FILE__ << ":" << __LINE__ <<"y here is "<<y2<<"R1 is "<<R1<<"R2 is "<<R2<<std::endl; 
-			uwb_start::goal("uav2",4.3,17.45,1.75,0);
+			uwb_start::goal("uav2",4.5,25.45,1.75,0);
 			ros::Duration(0.5).sleep();
 			while(other_drones_diagnostics["uav2"]){
 		  //std::cout << __FILE__ << ":" << __LINE__ << "i got in while 2 "  <<std::endl; 			
 			}
+			ros::Duration(5).sleep();
 			R3=anchor["uav2"].tag["uav1"];
 			n=R3-R2;
 			if(n>0)
